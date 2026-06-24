@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from neuron_dynamics import simulate, I_DEFAULT, J_QUARTIC
+from Graphs.neuron_dynamics import simulate, I_DEFAULT, J_QUARTIC
 
 
 def main():

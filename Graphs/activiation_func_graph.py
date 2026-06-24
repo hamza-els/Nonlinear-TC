@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from neuron_dynamics import equilibrium_activation
+from Graphs.neuron_dynamics import equilibrium_activation
 
 
 def main():
