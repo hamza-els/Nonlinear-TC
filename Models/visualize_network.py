@@ -230,17 +230,23 @@ def load_params(path):
 
 def train_and_visualize(z=0.5, out_path="network_trained.gif",
                         weights_path="trained_weights.npz",
-                        generations=100, P=50, K=64, M=32, device=None):
+                        generations=100, P=50, K=64, M=32, m_chunk=None,
+                        var_weight=0.0, loss_mode="squared", device=None):
     """Train a population by GA, save the best computer's weights, then
     visualize how it runs. Uses the GPU automatically if a CUDA build of
-    torch is installed."""
+    torch is installed. m_chunk caps how many samples are simulated at once
+    (lower it if you hit GPU out-of-memory). var_weight (lambda ~ 1/M_inf) adds
+    a per-sample output-variance penalty; loss_mode is "squared" (expected
+    squared error) or "rms" (expected single-readout error magnitude)."""
     import torch
     from genetic_algorithm import train, population_loss, resolve_device
 
     device = resolve_device(device)
-    pop, _ = train(generations=generations, P=P, K=K, M=M, device=device)
+    pop, _ = train(generations=generations, P=P, K=K, M=M, m_chunk=m_chunk,
+                   var_weight=var_weight, loss_mode=loss_mode, device=device)
     z_eval = torch.arange(K, dtype=torch.float32, device=device) / (K - 1)
-    losses = population_loss(pop, z_eval, M=M)
+    losses = population_loss(pop, z_eval, M=M, m_chunk=m_chunk,
+                            var_weight=var_weight, loss_mode=loss_mode)
     best = int(losses.argmin())
     print(f"best loss after {generations} gens: {losses[best].item():.4f}")
 

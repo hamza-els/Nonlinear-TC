@@ -16,15 +16,7 @@ MUT_STD = 1e-2    # base mutation size, before fan-in scaling
 
 # --- Per-neuron fan-in (for scaling mutations) ----------------------------
 def neuron_fanin():
-    """Number of connections entering each neuron: the sizes of the adjacent
-    layers it couples to (bilinear coupling is bidirectional), plus the external
-    inputs for input-layer neurons. Used to scale mutations (paper, Sec. S3 B).
-
-    Takes no arguments (reads the module-level LAYERS / N_INPUTS).
-
-    Returns
-    -------
-    fanin : (N,)     the in-degree of each neuron, indexed in the flat layout."""
+    """In-degree of each neuron (adjacent layer sizes + inputs), shape (N,)."""
     fanin = torch.zeros(N)
     L = len(LAYERS)
     for l in range(L):
@@ -36,24 +28,8 @@ def neuron_fanin():
 
 
 def mutation_std():
-    """Per-parameter mutation standard deviations, std = MUT_STD * C^{-1/2}.
-
-    C is the fan-in: 1 for biases b and output weights f; the receiving neuron's
-    fan-in for input weights W; and the average of the two neurons' fan-ins for
-    couplings J. Scaling by fan-in keeps the change to each neuron's total input
-    of similar size across the network (paper, Sec. S3 B).
-
-    Takes no arguments (reads the module-level architecture and MUT_STD).
-
-    Returns
-    -------
-    dict with the same keys as a population (see init_population):
-        "b" : (N,)            std for every neuron bias.
-        "f" : (N_OUT,)        std for every output weight.
-        "W" : (LAYERS[0],)    std for each input weight, scaled by its neuron's fan-in.
-        "J" : list of (s_l, s_{l+1})  std for each coupling, scaled by the pair's fan-in.
-    Each tensor matches a population tensor's trailing shape, so it broadcasts
-    over the leading population axis during mutation."""
+    """Per-parameter mutation std = MUT_STD * C^{-1/2}, C = fan-in (paper S3 B).
+    Returns a dict keyed like a population (b, f, W, J)."""
     fanin = neuron_fanin()
     std = {
         "b": MUT_STD * torch.ones(N),                       # C = 1
@@ -72,22 +48,8 @@ def mutation_std():
 
 # --- Population representation --------------------------------------------
 def init_population(P, device="cpu"):
-    """A population of P thermodynamic computers as batched tensors, all drawn
-    from N(0, INIT_STD). Every tensor has a leading population axis of size P,
-    so index p selects the parameters of the p-th computer.
-
-    Parameters
-    ----------
-    P : int          number of computers in the population (the GA's gene pool).
-    device : str     torch device the tensors live on ("cpu" or "cuda").
-
-    Returns
-    -------
-    dict of batched parameters:
-        "W" : (P, LAYERS[0])  input weights coupling z into the first layer.
-        "b" : (P, N)          per-neuron biases.
-        "f" : (P, N_OUT)      output weights mapping output neuron(s) -> y.
-        "J" : list of (P, s_l, s_{l+1})  bilinear couplings between adjacent layers."""
+    """P computers as batched tensors (leading axis P) drawn from N(0, INIT_STD).
+    Keys: W (P,LAYERS[0]), b (P,N), f (P,N_OUT), J list of (P,s_l,s_{l+1})."""
     g = {
         "W": INIT_STD * torch.randn(P, LAYERS[0], device=device),
         "b": INIT_STD * torch.randn(P, N, device=device),
@@ -101,20 +63,7 @@ def init_population(P, device="cpu"):
 
 
 def coupling_matrices(pop):
-    """Assemble the batched symmetric coupling matrices Jc of shape (P, N, N).
-
-    Each computer's rectangular per-layer couplings pop["J"] are written into the
-    full N x N matrix at the adjacent-layer blocks, and mirrored across the
-    diagonal so Jc[p] is symmetric (Jc[i,j] = Jc[j,i]).
-
-    Parameters
-    ----------
-    pop : dict       a population (see init_population); only pop["J"] and the
-                     population size are used.
-
-    Returns
-    -------
-    Jc : (P, N, N)   one symmetric coupling matrix per computer."""
+    """Batched symmetric coupling matrices (P, N, N) from the per-layer blocks."""
     P = pop["b"].shape[0]
     Jc = pop["b"].new_zeros(P, N, N)
     for l, Wmat in enumerate(pop["J"]):          # Wmat: (P, s_l, s_{l+1})
@@ -127,29 +76,20 @@ def coupling_matrices(pop):
 
 # --- Batched simulation + loss for the whole population -------------------
 @torch.no_grad()
-def population_loss(pop, z, M=128, tf=1.0, dt=1e-3, beta=10.0, mu=1.0):
-    """Reset-sampling simulation of all P computers at once, scoring each against
-    the target. Every trajectory starts from x = 0, evolves under overdamped
-    Langevin dynamics to time tf, and the final activations are averaged over the
-    M samples before computing the MSE loss.
+def population_loss(pop, z, M=128, m_chunk=None, var_weight=0.0,
+                    loss_mode="squared", tf=1.0, dt=1e-3, beta=10.0, mu=1.0):
+    """Reset-sampling loss of all P computers, shape (P,).
 
-    Parameters
-    ----------
-    pop : dict       the population of parameters (see init_population).
-    z : (K,) tensor  the K input values to evaluate (here points on [0, 1]).
-    M : int          samples (independent noisy replicas) averaged per input;
-                     more M -> less noisy loss, more compute/memory.
-    tf : float       observation time at which the output is read (units of mu^-1).
-    dt : float       Euler-Maruyama timestep; n_steps = tf / dt.
-    beta : float     inverse temperature 1/(kB T); sets the noise strength.
-    mu : float       mobility (overall time constant of the dynamics).
-
-    Returns
-    -------
-    losses : (P,)    the loss phi of each computer in the population."""
+    Runs the Langevin dynamics to tf and averages the output over M samples
+    (processed in m_chunk batches to cap memory). var_weight (~1/M_inf) weights a
+    per-sample output-variance penalty; loss_mode "squared" -> MSE + var_weight*Var,
+    "rms" -> mean_z sqrt(bias^2 + var_weight*Var)."""
     J2, J3, J4 = J_INTRINSIC
     P = pop["b"].shape[0]
     K = z.shape[0]
+    if m_chunk is None or m_chunk > M:
+        m_chunk = M
+    f = pop["f"]
 
     Jc = coupling_matrices(pop)                  # (P, N, N)
 
@@ -160,42 +100,48 @@ def population_loss(pop, z, M=128, tf=1.0, dt=1e-3, beta=10.0, mu=1.0):
     kT = 1.0 / beta
     noise_amp = (2.0 * mu * kT * dt) ** 0.5
     n_steps = int(round(tf / dt))
-
     b = pop["b"]
-    x = pop["b"].new_zeros(P, K, M, N)           # (population, input, sample, neuron)
-    for _ in range(n_steps):
-        coupling = torch.einsum("pkmn,pnj->pkmj", x, Jc)
-        dVdx = (
-            (2.0 * J2 * x + 3.0 * J3 * x ** 2 + 4.0 * J4 * x ** 3)
-            - b[:, None, None, :]
-            + coupling
-            + ext[:, :, None, :]
-        )
-        x = x - mu * dVdx * dt + noise_amp * torch.randn_like(x)
 
-    mean_x = x.mean(dim=2)                        # (P, K, N)
-    y = (mean_x[:, :, OUTPUT_IDX] * pop["f"][:, None, :]).sum(dim=-1)  # (P, K)
-    return ((target(z)[None, :] - y) ** 2).mean(dim=1)                  # (P,)
+    # Accumulate, over chunks of samples, the summed per-sample output Y and its
+    # square, so both the mean output and its variance fall out at the end. Peak
+    # state tensor is only (P, K, m_chunk, N) at a time.
+    sum_y = pop["b"].new_zeros(P, K)             # sum_alpha Y^(alpha)
+    sum_y2 = pop["b"].new_zeros(P, K)            # sum_alpha (Y^(alpha))^2
+    remaining = M
+    while remaining > 0:
+        m = min(m_chunk, remaining)
+        x = pop["b"].new_zeros(P, K, m, N)       # (population, input, sample, neuron)
+        for _ in range(n_steps):
+            coupling = torch.einsum("pkmn,pnj->pkmj", x, Jc)
+            dVdx = (
+                (2.0 * J2 * x + 3.0 * J3 * x ** 2 + 4.0 * J4 * x ** 3)
+                - b[:, None, None, :]
+                + coupling
+                + ext[:, :, None, :]
+            )
+            x = x - mu * dVdx * dt + noise_amp * torch.randn_like(x)
+        Y = (x[:, :, :, OUTPUT_IDX] * f[:, None, None, :]).sum(dim=-1)  # (P, K, m)
+        sum_y += Y.sum(dim=2)
+        sum_y2 += (Y ** 2).sum(dim=2)
+        remaining -= m
+
+    y = sum_y / M                                # mean output, (P, K)
+    bias2 = (target(z)[None, :] - y) ** 2        # (P, K)
+    var = (sum_y2 / M - y ** 2).clamp_min(0.0)   # per-sample output variance (P, K)
+    if loss_mode == "rms":
+        # expected RMS error of a readout: sqrt(bias^2 + var/M_inf) per input,
+        # averaged over inputs (var_weight plays the role of 1/M_inf).
+        return torch.sqrt(bias2 + var_weight * var).mean(dim=1)
+    if loss_mode == "squared":
+        return bias2.mean(dim=1) + var_weight * var.mean(dim=1)
+    raise ValueError(f"unknown loss_mode {loss_mode!r}")
 
 
 # --- Genetic algorithm ----------------------------------------------------
 @torch.no_grad()
 def select_and_breed(pop, losses, std, n_elite=5):
-    """One generation of selection + reproduction: keep the n_elite lowest-loss
-    computers, clone them to refill the population back to size P, then mutate
-    every clone (mutations scaled per-parameter by fan-in).
-
-    Parameters
-    ----------
-    pop : dict       the current population of parameters (see init_population).
-    losses : (P,)    each computer's loss, from population_loss; lower is better.
-    std : dict       per-parameter mutation std from mutation_std().
-    n_elite : int    how many top computers survive and become parents; each
-                     produces P / n_elite mutated offspring.
-
-    Returns
-    -------
-    new : dict       the next-generation population, same structure as pop."""
+    """Keep the n_elite lowest-loss computers, clone them back to size P, and
+    mutate every clone (fan-in-scaled std). Returns the next-gen population."""
     P = losses.shape[0]
     elite = torch.argsort(losses)[:n_elite]                # indices of best
     # Each elite produces P / n_elite offspring.
@@ -224,26 +170,10 @@ def resolve_device(device=None):
 
 
 def train(generations=500, P=50, n_elite=5, K=250, M=128, device=None, **sim_kw):
-    """Run the genetic algorithm: repeatedly score the population and breed the
-    survivors. The K evenly-spaced inputs z_j on [0, 1] and the fan-in mutation
-    stds are set up once, then each generation scores all P computers and
-    replaces them with mutated offspring of the best n_elite.
-
-    Parameters
-    ----------
-    generations : int   number of GA iterations to run.
-    P : int             population size (computers scored each generation).
-    n_elite : int       survivors per generation (parents of the next).
-    K : int             number of input points used to evaluate the loss.
-    M : int             samples per input in the simulation (passed through).
-    device : str        torch device ("cpu" or "cuda").
-    **sim_kw            extra simulation kwargs forwarded to population_loss
-                        (tf, dt, beta, mu).
-
-    Returns
-    -------
-    pop : dict          the final population after `generations` iterations.
-    history : list      best loss recorded at each generation."""
+    """Run the GA over K evenly-spaced inputs on [0, 1]. Each generation scores
+    all P computers and breeds the best n_elite. **sim_kw forwards to
+    population_loss (m_chunk, var_weight, loss_mode, tf, dt, beta, mu).
+    Returns (final population, best-loss-per-generation list)."""
     device = resolve_device(device)
     print(f"training on {device}")
     z = torch.arange(K, device=device, dtype=torch.float32) / (K - 1)
