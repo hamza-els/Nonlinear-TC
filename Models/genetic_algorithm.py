@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 
 from cosine_training_torch import (
@@ -169,11 +170,26 @@ def resolve_device(device=None):
     return device
 
 
-def train(generations=500, P=50, n_elite=5, K=250, M=128, device=None, **sim_kw):
+def save_best(pop, losses, path):
+    """Save the lowest-loss computer's weights to a .npz file."""
+    b = int(losses.argmin())
+    arrs = {"W": pop["W"][b].detach().cpu().numpy(),
+            "b": pop["b"][b].detach().cpu().numpy(),
+            "f": pop["f"][b].detach().cpu().numpy()}
+    for l, Jm in enumerate(pop["J"]):
+        arrs[f"J{l}"] = Jm[b].detach().cpu().numpy()
+    np.savez(path, **arrs)
+
+
+def train(generations=500, P=50, n_elite=5, K=250, M=128, device=None,
+          save_path=None, checkpoint_every=50, **sim_kw):
     """Run the GA over K evenly-spaced inputs on [0, 1]. Each generation scores
     all P computers and breeds the best n_elite. **sim_kw forwards to
     population_loss (m_chunk, var_weight, loss_mode, tf, dt, beta, mu).
-    Returns (final population, best-loss-per-generation list)."""
+
+    If save_path is given, the current best computer's weights are written there
+    every checkpoint_every generations and at the end (so a dropped session or
+    wall-time limit doesn't lose the run). Returns (final population, history)."""
     device = resolve_device(device)
     print(f"training on {device}")
     z = torch.arange(K, device=device, dtype=torch.float32) / (K - 1)
@@ -187,9 +203,12 @@ def train(generations=500, P=50, n_elite=5, K=250, M=128, device=None, **sim_kw)
         losses = population_loss(pop, z, M=M, **sim_kw)
         best = losses.min().item()
         history.append(best)
-        pop = select_and_breed(pop, losses, std, n_elite=n_elite)
         if gen % 10 == 0:
-            print(f"gen {gen:4d}   best loss {best:.4f}")
+            print(f"gen {gen:4d}   best loss {best:.4f}", flush=True)
+        if save_path and (gen == generations - 1
+                          or (checkpoint_every and gen % checkpoint_every == 0)):
+            save_best(pop, losses, save_path)
+        pop = select_and_breed(pop, losses, std, n_elite=n_elite)
     return pop, history
 
 
