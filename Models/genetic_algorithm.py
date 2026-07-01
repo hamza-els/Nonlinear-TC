@@ -184,6 +184,46 @@ def population_loss(pop, z, M=128, m_chunk=None, var_weight=0.0,
     raise ValueError(f"unknown loss_mode {loss_mode!r}")
 
 
+# --- Multi-GPU evaluation -------------------------------------------------
+def as_devices(devices):
+    """Normalize the devices argument: None -> None; an int n -> the first n
+    CUDA devices; a list/tuple -> itself (as strings)."""
+    if devices is None:
+        return None
+    if isinstance(devices, int):
+        return [f"cuda:{i}" for i in range(devices)]
+    return [str(d) for d in devices]
+
+
+def _shard_to(pop, sl, device):
+    """Slice computers [sl] out of a population and move them to `device`."""
+    return {
+        "W": pop["W"][sl].to(device, non_blocking=True),
+        "b": pop["b"][sl].to(device, non_blocking=True),
+        "f": pop["f"][sl].to(device, non_blocking=True),
+        "J": [Jm[sl].to(device, non_blocking=True) for Jm in pop["J"]],
+    }
+
+
+@torch.no_grad()
+def population_loss_sharded(pop, z, devices, **kw):
+    """Evaluate the population split across several GPUs, gathered to pop's
+    device. Each shard's parameters (tiny) are copied to its GPU and its loss is
+    launched without an intervening sync, so the GPUs' simulations overlap; the
+    final gather is the only synchronization point."""
+    P = pop["b"].shape[0]
+    G = len(devices)
+    main = pop["b"].device
+    bounds = [round(i * P / G) for i in range(G + 1)]   # contiguous, uneven-safe
+
+    partial = []
+    for g, dev in enumerate(devices):
+        sl = slice(bounds[g], bounds[g + 1])
+        sub = _shard_to(pop, sl, dev)
+        partial.append(population_loss(sub, z.to(dev, non_blocking=True), **kw))
+    return torch.cat([p.to(main) for p in partial])       # (P,), gather + sync
+
+
 # --- Genetic algorithm ----------------------------------------------------
 @torch.no_grad()
 def select_and_breed(pop, losses, std, n_elite=5):
@@ -228,27 +268,41 @@ def save_best(pop, losses, path):
 
 
 def train(generations=500, P=50, n_elite=5, K=250, M=128, device=None,
-          save_path=None, checkpoint_every=50, print_every=10, **sim_kw):
+          devices=None, save_path=None, checkpoint_every=50, print_every=10, **sim_kw):
     """Run the GA over K evenly-spaced inputs on [0, 1]. Each generation scores
     all P computers and breeds the best n_elite. **sim_kw forwards to
     population_loss (m_chunk, var_weight, loss_mode, tf, dt, beta, mu).
+
+    devices enables multi-GPU: pass an int n (use the first n GPUs) or a list of
+    device strings; the population is sharded across them each generation. If
+    None, a single device is used (device, else auto).
 
     Prints best loss + wall-time-per-generation every print_every generations
     (set print_every=1 for per-generation updates when speed-testing). If
     save_path is given, the best computer's weights are checkpointed there every
     checkpoint_every generations and at the end. Returns (final population, history)."""
-    device = resolve_device(device)
-    print(f"training on {device}")
-    z = torch.arange(K, device=device, dtype=torch.float32) / (K - 1)
-    std = mutation_std()
-    std = {"W": std["W"].to(device), "b": std["b"].to(device),
-           "f": std["f"].to(device), "J": [s.to(device) for s in std["J"]]}
+    dev_list = as_devices(devices)
+    if dev_list and len(dev_list) > 1:
+        main = dev_list[0]
+        print(f"training on {len(dev_list)} GPUs: {dev_list}")
+    else:
+        main = resolve_device(device if dev_list is None else dev_list[0])
+        dev_list = None
+        print(f"training on {main}")
 
-    pop = init_population(P, device=device)
+    z = torch.arange(K, device=main, dtype=torch.float32) / (K - 1)
+    std = mutation_std()
+    std = {"W": std["W"].to(main), "b": std["b"].to(main),
+           "f": std["f"].to(main), "J": [s.to(main) for s in std["J"]]}
+
+    pop = init_population(P, device=main)
     history = []
     last_t, last_gen = time.time(), 0
     for gen in range(generations):
-        losses = population_loss(pop, z, M=M, **sim_kw)
+        if dev_list:
+            losses = population_loss_sharded(pop, z, dev_list, M=M, **sim_kw)
+        else:
+            losses = population_loss(pop, z, M=M, **sim_kw)
         best = losses.min().item()
         history.append(best)
         if gen % print_every == 0:
