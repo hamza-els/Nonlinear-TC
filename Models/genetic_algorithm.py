@@ -1,3 +1,4 @@
+import time
 import warnings
 
 import numpy as np
@@ -227,14 +228,15 @@ def save_best(pop, losses, path):
 
 
 def train(generations=500, P=50, n_elite=5, K=250, M=128, device=None,
-          save_path=None, checkpoint_every=50, **sim_kw):
+          save_path=None, checkpoint_every=50, print_every=10, **sim_kw):
     """Run the GA over K evenly-spaced inputs on [0, 1]. Each generation scores
     all P computers and breeds the best n_elite. **sim_kw forwards to
     population_loss (m_chunk, var_weight, loss_mode, tf, dt, beta, mu).
 
-    If save_path is given, the current best computer's weights are written there
-    every checkpoint_every generations and at the end (so a dropped session or
-    wall-time limit doesn't lose the run). Returns (final population, history)."""
+    Prints best loss + wall-time-per-generation every print_every generations
+    (set print_every=1 for per-generation updates when speed-testing). If
+    save_path is given, the best computer's weights are checkpointed there every
+    checkpoint_every generations and at the end. Returns (final population, history)."""
     device = resolve_device(device)
     print(f"training on {device}")
     z = torch.arange(K, device=device, dtype=torch.float32) / (K - 1)
@@ -244,12 +246,16 @@ def train(generations=500, P=50, n_elite=5, K=250, M=128, device=None,
 
     pop = init_population(P, device=device)
     history = []
+    last_t, last_gen = time.time(), 0
     for gen in range(generations):
         losses = population_loss(pop, z, M=M, **sim_kw)
         best = losses.min().item()
         history.append(best)
-        if gen % 10 == 0:
-            print(f"gen {gen:4d}   best loss {best:.4f}", flush=True)
+        if gen % print_every == 0:
+            now = time.time()
+            per = (now - last_t) / max(gen - last_gen, 1)   # avg since last print
+            print(f"gen {gen:4d}   best loss {best:.4f}   {per:6.2f} s/gen", flush=True)
+            last_t, last_gen = now, gen
         if save_path and (gen == generations - 1
                           or (checkpoint_every and gen % checkpoint_every == 0)):
             save_best(pop, losses, save_path)
