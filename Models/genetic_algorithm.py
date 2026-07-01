@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import torch
 
@@ -75,16 +77,64 @@ def coupling_matrices(pop):
     return Jc
 
 
+# --- One Euler-Maruyama step (hot loop) -----------------------------------
+def _langevin_step(x, Jc, field4, c1, c3, c4, mudt, noise_amp):
+    """One overdamped-Langevin update, physics identical to the original loop.
+
+    field4 = (external input - bias) broadcast to (P,K,1,N); c1,c3,c4 are the
+    prefactors 2*J2, 3*J3, 4*J4; mudt = mu*dt. The J3 (cubic-in-U) term is
+    skipped when c3 == 0 (our default (1,0,1) neuron)."""
+    coupling = torch.einsum("pkmn,pnj->pkmj", x, Jc)
+    x2 = x * x
+    drift = c1 * x + c4 * (x2 * x) + coupling + field4
+    if c3 != 0.0:
+        drift = drift + c3 * x2
+    return x - mudt * drift + noise_amp * torch.randn_like(x)
+
+
+_compiled_step = None       # lazily-built torch.compile version of _langevin_step
+_COMPILE_ENABLED = True      # set False if compilation fails once, to stop retrying
+
+
+def _integrate(make_x, Jc, field4, consts, n_steps, use_compile):
+    """Run n_steps of the update from a fresh zero state. Uses a torch.compile'd
+    step on CUDA when available, falling back to eager if compilation fails."""
+    global _compiled_step, _COMPILE_ENABLED
+    step = _langevin_step
+    if use_compile and _COMPILE_ENABLED:
+        if _compiled_step is None:
+            _compiled_step = torch.compile(_langevin_step)
+        step = _compiled_step
+
+    x = make_x()
+    try:
+        for _ in range(n_steps):
+            x = step(x, Jc, field4, *consts)
+        return x
+    except Exception as e:                       # inductor/triton unavailable, etc.
+        if step is _langevin_step:
+            raise
+        warnings.warn(f"torch.compile step failed ({type(e).__name__}: {e}); "
+                      "falling back to eager execution")
+        _COMPILE_ENABLED = False
+        x = make_x()
+        for _ in range(n_steps):
+            x = _langevin_step(x, Jc, field4, *consts)
+        return x
+
+
 # --- Batched simulation + loss for the whole population -------------------
 @torch.no_grad()
 def population_loss(pop, z, M=128, m_chunk=None, var_weight=0.0,
-                    loss_mode="squared", tf=1.0, dt=1e-3, beta=10.0, mu=1.0):
+                    loss_mode="squared", tf=1.0, dt=1e-3, beta=10.0, mu=1.0,
+                    compile_step=True):
     """Reset-sampling loss of all P computers, shape (P,).
 
     Runs the Langevin dynamics to tf and averages the output over M samples
     (processed in m_chunk batches to cap memory). var_weight (~1/M_inf) weights a
     per-sample output-variance penalty; loss_mode "squared" -> MSE + var_weight*Var,
-    "rms" -> mean_z sqrt(bias^2 + var_weight*Var)."""
+    "rms" -> mean_z sqrt(bias^2 + var_weight*Var). compile_step torch.compile's the
+    hot integration step on CUDA (falls back to eager if unavailable)."""
     J2, J3, J4 = J_INTRINSIC
     P = pop["b"].shape[0]
     K = z.shape[0]
@@ -94,14 +144,17 @@ def population_loss(pop, z, M=128, m_chunk=None, var_weight=0.0,
 
     Jc = coupling_matrices(pop)                  # (P, N, N)
 
-    # External field W_i z on input-layer neurons: (P, K, N), zero elsewhere.
+    # Constant per-neuron field = external input (W_i z on layer 0) minus bias.
+    # Precomputed once and broadcast over the sample axis: (P, K, 1, N).
     ext = pop["b"].new_zeros(P, K, N)
     ext[:, :, INPUT_IDX] = z[None, :, None] * pop["W"][:, None, :]
+    field4 = (ext - pop["b"][:, None, :]).unsqueeze(2)   # (P, K, 1, N)
 
-    kT = 1.0 / beta
-    noise_amp = (2.0 * mu * kT * dt) ** 0.5
+    noise_amp = (2.0 * mu * (1.0 / beta) * dt) ** 0.5
     n_steps = int(round(tf / dt))
-    b = pop["b"]
+    # Folded constants passed to the step (avoids recomputing every iteration).
+    consts = (2.0 * J2, 3.0 * J3, 4.0 * J4, mu * dt, noise_amp)
+    use_compile = compile_step and pop["b"].is_cuda
 
     # Accumulate, over chunks of samples, the summed per-sample output Y and its
     # square, so both the mean output and its variance fall out at the end. Peak
@@ -110,17 +163,9 @@ def population_loss(pop, z, M=128, m_chunk=None, var_weight=0.0,
     sum_y2 = pop["b"].new_zeros(P, K)            # sum_alpha (Y^(alpha))^2
     remaining = M
     while remaining > 0:
-        m = min(m_chunk, remaining)
-        x = pop["b"].new_zeros(P, K, m, N)       # (population, input, sample, neuron)
-        for _ in range(n_steps):
-            coupling = torch.einsum("pkmn,pnj->pkmj", x, Jc)
-            dVdx = (
-                (2.0 * J2 * x + 3.0 * J3 * x ** 2 + 4.0 * J4 * x ** 3)
-                - b[:, None, None, :]
-                + coupling
-                + ext[:, :, None, :]
-            )
-            x = x - mu * dVdx * dt + noise_amp * torch.randn_like(x)
+        m = min(m_chunk, remaining)              # (population, input, sample, neuron)
+        x = _integrate(lambda: pop["b"].new_zeros(P, K, m, N),
+                       Jc, field4, consts, n_steps, use_compile)
         Y = (x[:, :, :, OUTPUT_IDX] * f[:, None, None, :]).sum(dim=-1)  # (P, K, m)
         sum_y += Y.sum(dim=2)
         sum_y2 += (Y ** 2).sum(dim=2)
