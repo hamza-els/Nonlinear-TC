@@ -2,12 +2,13 @@ import torch
 import torch.nn as nn
 
 # --- Network architecture -------------------------------------------------
-# Four layers of 8 neurons feeding a single output neuron.
-LAYERS = [8, 8, 8, 8, 1]
-N = sum(LAYERS)                          # total neurons (= 33)
+# Width 8, depth 4 (paper, Sec. S3 C). The 8 final-layer neurons are the
+# outputs; the scalar y is their f-weighted sum (Eq. 9).
+LAYERS = [8, 8, 8, 8]
+N = sum(LAYERS)                          # total neurons (= 32)
 OFFSETS = torch.cumsum(torch.tensor([0] + LAYERS), 0)  # start index of each layer
 INPUT_IDX = torch.arange(OFFSETS[0], OFFSETS[1])        # layer-0 neurons (take input z)
-OUTPUT_IDX = torch.arange(OFFSETS[-2], OFFSETS[-1])     # final output neuron(s)
+OUTPUT_IDX = torch.arange(OFFSETS[-2], OFFSETS[-1])     # final-layer output neurons
 
 # Intrinsic neuron couplings J = (J2, J3, J4); (1, 0, 1) -> nonlinear neuron.
 J_INTRINSIC = (1.0, 0.0, 1.0)
