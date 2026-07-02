@@ -126,16 +126,13 @@ def _integrate(make_x, Jc, field4, consts, n_steps, use_compile):
 
 # --- Batched simulation + loss for the whole population -------------------
 @torch.no_grad()
-def population_loss(pop, z, M=128, m_chunk=None, var_weight=0.0,
-                    loss_mode="squared", tf=1.0, dt=1e-3, beta=10.0, mu=1.0,
-                    compile_step=True):
-    """Reset-sampling loss of all P computers, shape (P,).
+def _simulate_yvar(pop, z, M=128, m_chunk=None,
+                   tf=1.0, dt=1e-3, beta=10.0, mu=1.0, compile_step=True):
+    """Reset-sampling simulation of all P computers. Returns the mean output
+    y(z) and the per-sample output variance, each shape (P, K).
 
-    Runs the Langevin dynamics to tf and averages the output over M samples
-    (processed in m_chunk batches to cap memory). var_weight (~1/M_inf) weights a
-    per-sample output-variance penalty; loss_mode "squared" -> MSE + var_weight*Var,
-    "rms" -> mean_z sqrt(bias^2 + var_weight*Var). compile_step torch.compile's the
-    hot integration step on CUDA (falls back to eager if unavailable)."""
+    The M samples run in m_chunk batches to cap memory; compile_step torch.compiles
+    the hot step on CUDA (falls back to eager if unavailable)."""
     J2, J3, J4 = J_INTRINSIC
     P = pop["b"].shape[0]
     K = z.shape[0]
@@ -146,22 +143,19 @@ def population_loss(pop, z, M=128, m_chunk=None, var_weight=0.0,
     Jc = coupling_matrices(pop)                  # (P, N, N)
 
     # Constant per-neuron field = external input (W_i z on layer 0) minus bias.
-    # Precomputed once and broadcast over the sample axis: (P, K, 1, N).
     ext = pop["b"].new_zeros(P, K, N)
     ext[:, :, INPUT_IDX] = z[None, :, None] * pop["W"][:, None, :]
     field4 = (ext - pop["b"][:, None, :]).unsqueeze(2)   # (P, K, 1, N)
 
     noise_amp = (2.0 * mu * (1.0 / beta) * dt) ** 0.5
     n_steps = int(round(tf / dt))
-    # Folded constants passed to the step (avoids recomputing every iteration).
     consts = (2.0 * J2, 3.0 * J3, 4.0 * J4, mu * dt, noise_amp)
     use_compile = compile_step and pop["b"].is_cuda
 
-    # Accumulate, over chunks of samples, the summed per-sample output Y and its
-    # square, so both the mean output and its variance fall out at the end. Peak
-    # state tensor is only (P, K, m_chunk, N) at a time.
-    sum_y = pop["b"].new_zeros(P, K)             # sum_alpha Y^(alpha)
-    sum_y2 = pop["b"].new_zeros(P, K)            # sum_alpha (Y^(alpha))^2
+    # Accumulate summed per-sample output Y and its square over sample chunks;
+    # peak state tensor is only (P, K, m_chunk, N) at a time.
+    sum_y = pop["b"].new_zeros(P, K)
+    sum_y2 = pop["b"].new_zeros(P, K)
     remaining = M
     while remaining > 0:
         m = min(m_chunk, remaining)              # (population, input, sample, neuron)
@@ -173,15 +167,47 @@ def population_loss(pop, z, M=128, m_chunk=None, var_weight=0.0,
         remaining -= m
 
     y = sum_y / M                                # mean output, (P, K)
-    bias2 = (target(z)[None, :] - y) ** 2        # (P, K)
     var = (sum_y2 / M - y ** 2).clamp_min(0.0)   # per-sample output variance (P, K)
+    return y, var
+
+
+@torch.no_grad()
+def population_output(pop, z, **kw):
+    """Mean output y(z) of each computer, shape (P, K). See _simulate_yvar."""
+    return _simulate_yvar(pop, z, **kw)[0]
+
+
+@torch.no_grad()
+def population_loss(pop, z, var_weight=0.0, loss_mode="squared", **kw):
+    """Reset-sampling loss of all P computers, shape (P,). var_weight (~1/M_inf)
+    weights a per-sample output-variance penalty; loss_mode "squared" ->
+    MSE + var_weight*Var, "rms" -> mean_z sqrt(bias^2 + var_weight*Var). Remaining
+    kwargs (M, m_chunk, neuron, tf, dt, beta, mu, compile_step) go to _simulate_yvar."""
+    y, var = _simulate_yvar(pop, z, **kw)
+    bias2 = (target(z)[None, :] - y) ** 2        # (P, K)
     if loss_mode == "rms":
-        # expected RMS error of a readout: sqrt(bias^2 + var/M_inf) per input,
-        # averaged over inputs (var_weight plays the role of 1/M_inf).
         return torch.sqrt(bias2 + var_weight * var).mean(dim=1)
     if loss_mode == "squared":
         return bias2.mean(dim=1) + var_weight * var.mean(dim=1)
     raise ValueError(f"unknown loss_mode {loss_mode!r}")
+
+
+def params_to_pop(params, device="cpu"):
+    """Wrap a single computer's numpy weights (W, b, f, J list) into a P=1
+    population of torch tensors, so the batched simulators can run on it."""
+    t = lambda a: torch.as_tensor(a, dtype=torch.float32, device=device)[None]
+    return {"W": t(params["W"]), "b": t(params["b"]), "f": t(params["f"]),
+            "J": [t(Jm) for Jm in params["J"]]}
+
+
+@torch.no_grad()
+def output_curve(params, z, M=1000, m_chunk=None, device="cpu", **kw):
+    """Compute the trained computer's output y(z) over the inputs z (numpy), by
+    reset-sampling averaging over M samples. Returns a numpy array."""
+    pop = params_to_pop(params, device)
+    zt = torch.as_tensor(z, dtype=torch.float32, device=device)
+    y = population_output(pop, zt, M=M, m_chunk=m_chunk, **kw)
+    return y[0].cpu().numpy()
 
 
 # --- Multi-GPU evaluation -------------------------------------------------
@@ -267,6 +293,34 @@ def save_best(pop, losses, path):
     np.savez(path, **arrs)
 
 
+def save_run(path, pop, losses, history, config):
+    """Save a training run to a .npz: the best computer's weights (W, b, f, J*),
+    the per-generation loss history, and config scalars (cfg_*). This is enough
+    to reproduce the loss curve (Fig 2c) and recompute the output y(z) (Fig 2d)."""
+    b = int(losses.argmin())
+    arrs = {"W": pop["W"][b].detach().cpu().numpy(),
+            "b": pop["b"][b].detach().cpu().numpy(),
+            "f": pop["f"][b].detach().cpu().numpy(),
+            "loss_history": np.asarray(history, dtype=np.float64)}
+    for l, Jm in enumerate(pop["J"]):
+        arrs[f"J{l}"] = Jm[b].detach().cpu().numpy()
+    for k, v in config.items():
+        arrs[f"cfg_{k}"] = np.asarray(v)
+    np.savez(path, **arrs)
+
+
+def load_run(path):
+    """Load a run saved by save_run. Returns (params, history, config), where
+    params is the numpy weights dict {W, b, f, J:[...]}, history is the loss
+    array, and config is a dict of the saved scalars."""
+    d = np.load(path)
+    n_J = sum(1 for k in d.files if k[0] == "J" and k[1:].isdigit())
+    params = {"W": d["W"], "b": d["b"], "f": d["f"],
+              "J": [d[f"J{l}"] for l in range(n_J)]}
+    config = {k[4:]: d[k] for k in d.files if k.startswith("cfg_")}
+    return params, d["loss_history"], config
+
+
 def train(generations=500, P=50, n_elite=5, K=250, M=128, device=None,
           devices=None, save_path=None, checkpoint_every=50, print_every=10, **sim_kw):
     """Run the GA over K evenly-spaced inputs on [0, 1]. Each generation scores
@@ -279,8 +333,9 @@ def train(generations=500, P=50, n_elite=5, K=250, M=128, device=None,
 
     Prints best loss + wall-time-per-generation every print_every generations
     (set print_every=1 for per-generation updates when speed-testing). If
-    save_path is given, the best computer's weights are checkpointed there every
-    checkpoint_every generations and at the end. Returns (final population, history)."""
+    save_path is given, a run record (best weights + loss history + config) is
+    checkpointed there every checkpoint_every generations and at the end; load it
+    with load_run to reproduce Fig 2c/2d. Returns (final population, history)."""
     dev_list = as_devices(devices)
     if dev_list and len(dev_list) > 1:
         main = dev_list[0]
@@ -289,6 +344,13 @@ def train(generations=500, P=50, n_elite=5, K=250, M=128, device=None,
         main = resolve_device(device if dev_list is None else dev_list[0])
         dev_list = None
         print(f"training on {main}")
+
+    # Config captured with the run so the figures can be reproduced exactly.
+    config = {"K": K, "M": M, "P": P,
+              "generations": generations, "n_elite": n_elite,
+              "tf": sim_kw.get("tf", 1.0), "dt": sim_kw.get("dt", 1e-3),
+              "beta": sim_kw.get("beta", 10.0), "mu": sim_kw.get("mu", 1.0),
+              "m_chunk": sim_kw.get("m_chunk") or M}
 
     z = torch.arange(K, device=main, dtype=torch.float32) / (K - 1)
     std = mutation_std()
@@ -312,7 +374,7 @@ def train(generations=500, P=50, n_elite=5, K=250, M=128, device=None,
             last_t, last_gen = now, gen
         if save_path and (gen == generations - 1
                           or (checkpoint_every and gen % checkpoint_every == 0)):
-            save_best(pop, losses, save_path)
+            save_run(save_path, pop, losses, history, config)
         pop = select_and_breed(pop, losses, std, n_elite=n_elite)
     return pop, history
 
