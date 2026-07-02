@@ -13,9 +13,11 @@ OFF = [int(o) for o in OFFSETS]
 N_OUT = len(OUTPUT_IDX)
 N_INPUTS = 1  # cosine task has a single external input z
 
-# GA / init hyperparameters.
-INIT_STD = 1e-2   # parameters initialized from N(0, INIT_STD)
-MUT_STD = 1e-2    # base mutation size, before fan-in scaling
+# GA / init hyperparameters. The paper writes N(0, 10^-2); that is a *variance*,
+# so the standard deviation is sqrt(1e-2) = 0.1 (using 0.01 as the std, as before,
+# makes init/mutations ~10x too small and the GA never leaves the ~0.5 plateau).
+INIT_STD = 0.1    # parameters initialized from N(0, std=0.1)  [variance 1e-2]
+MUT_STD = 0.1     # base mutation std, before fan-in scaling   [variance 1e-2]
 
 
 # --- Per-neuron fan-in (for scaling mutations) ----------------------------
@@ -182,7 +184,7 @@ def population_loss(pop, z, var_weight=0.0, loss_mode="squared", **kw):
     """Reset-sampling loss of all P computers, shape (P,). var_weight (~1/M_inf)
     weights a per-sample output-variance penalty; loss_mode "squared" ->
     MSE + var_weight*Var, "rms" -> mean_z sqrt(bias^2 + var_weight*Var). Remaining
-    kwargs (M, m_chunk, neuron, tf, dt, beta, mu, compile_step) go to _simulate_yvar."""
+    kwargs (M, m_chunk, tf, dt, beta, mu, compile_step) go to _simulate_yvar."""
     y, var = _simulate_yvar(pop, z, **kw)
     bias2 = (target(z)[None, :] - y) ** 2        # (P, K)
     if loss_mode == "rms":
@@ -257,8 +259,10 @@ def select_and_breed(pop, losses, std, n_elite=5):
     mutate every clone (fan-in-scaled std). Returns the next-gen population."""
     P = losses.shape[0]
     elite = torch.argsort(losses)[:n_elite]                # indices of best
-    # Each elite produces P / n_elite offspring.
-    parents = elite.repeat_interleave(P // n_elite)[:P]    # (P,) parent index per slot
+    # Each elite produces ~P / n_elite offspring (ceil then trim, so the
+    # population stays exactly size P even when P % n_elite != 0).
+    per_parent = -(-P // n_elite)                          # ceil division
+    parents = elite.repeat_interleave(per_parent)[:P]      # (P,) parent index per slot
 
     new = {
         "W": pop["W"][parents].clone(),
@@ -350,7 +354,10 @@ def train(generations=500, P=50, n_elite=5, K=250, M=128, device=None,
               "generations": generations, "n_elite": n_elite,
               "tf": sim_kw.get("tf", 1.0), "dt": sim_kw.get("dt", 1e-3),
               "beta": sim_kw.get("beta", 10.0), "mu": sim_kw.get("mu", 1.0),
-              "m_chunk": sim_kw.get("m_chunk") or M}
+              "m_chunk": sim_kw.get("m_chunk") or M,
+              "var_weight": sim_kw.get("var_weight", 0.0),
+              "loss_mode": sim_kw.get("loss_mode", "squared"),
+              "init_std": INIT_STD, "mut_std": MUT_STD}
 
     z = torch.arange(K, device=main, dtype=torch.float32) / (K - 1)
     std = mutation_std()
@@ -365,6 +372,10 @@ def train(generations=500, P=50, n_elite=5, K=250, M=128, device=None,
             losses = population_loss_sharded(pop, z, dev_list, M=M, **sim_kw)
         else:
             losses = population_loss(pop, z, M=M, **sim_kw)
+        # A computer whose dynamics blew up (NaN/inf loss) must never be selected
+        # as elite or saved as "best": map NaN -> inf so min/argmin/argsort all
+        # rank it last instead of propagating NaN into the checkpoint.
+        losses = torch.nan_to_num(losses, nan=float("inf"), posinf=float("inf"))
         best = losses.min().item()
         history.append(best)
         if gen % print_every == 0:
