@@ -1,0 +1,11 @@
+
+CondaError: Run 'conda init' before 'conda deactivate'
+
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+ModuleNotFoundError: No module named 'torch'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/global/home/users/helsayed/Linear-TC-Project/Nonlinear-TC/Models/genetic_algorithm.py", line 2, in <module>
+    import torch
+ModuleNotFoundError: No module named 'torch'
