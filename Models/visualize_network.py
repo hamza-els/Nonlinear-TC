@@ -229,7 +229,7 @@ def load_params(path):
 
 
 def train_and_visualize(z=0.5, out_path="network_trained.gif",
-                        weights_path="trained_weights.npz",
+                        weights_path="runs/trained_weights.npz",
                         generations=100, P=50, K=64, M=32, m_chunk=None,
                         var_weight=0.0, loss_mode="squared", device=None):
     """Train a population by GA, save the best computer's weights, then
@@ -255,7 +255,7 @@ def train_and_visualize(z=0.5, out_path="network_trained.gif",
     animate(params, z=z, out_path=out_path)
 
 
-def visualize_saved(weights_path="trained_weights.npz", z=0.5,
+def visualize_saved(weights_path="runs/trained_weights.npz", z=0.5,
                     out_path="network_trained.gif"):
     """Load saved weights and visualize a run (no training)."""
     animate(load_params(weights_path), z=z, out_path=out_path)

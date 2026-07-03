@@ -5,7 +5,7 @@
     over M samples), against the target cos(2 pi z).
 
 Usage:
-    python plot_fig2.py [run.npz]      # default: trained_weights.npz
+    python plot_fig2.py [run.npz]      # default: runs/trained_weights.npz
 """
 
 import sys
@@ -55,7 +55,7 @@ def plot(run_path, out_path="fig2_cd.png", M_eval=None, device=None):
 
 
 def main():
-    run = sys.argv[1] if len(sys.argv) > 1 else "trained_weights.npz"
+    run = sys.argv[1] if len(sys.argv) > 1 else "runs/trained_weights.npz"
     plot(run)
 
 
