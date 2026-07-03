@@ -26,8 +26,8 @@ def main():
     ax.set_ylim(-2, 2)
     ax.legend(frameon=False)
     fig.tight_layout()
-    fig.savefig("activiation_func_graph.png", dpi=150)
-    print("saved activiation_func_graph.png")
+    fig.savefig("activation_func_graph.png", dpi=150)
+    print("saved activation_func_graph.png")
 
 
 if __name__ == "__main__":

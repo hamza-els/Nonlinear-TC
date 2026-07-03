@@ -255,14 +255,22 @@ def population_loss_sharded(pop, z, devices, **kw):
 # --- Genetic algorithm ----------------------------------------------------
 @torch.no_grad()
 def select_and_breed(pop, losses, std, n_elite=5):
-    """Keep the n_elite lowest-loss computers, clone them back to size P, and
-    mutate every clone (fan-in-scaled std). Returns the next-gen population."""
+    """Elitist selection. Carry the n_elite lowest-loss computers over
+    *unmutated* (elitism), and fill the remaining P - n_elite slots with mutated
+    clones of the elite (fan-in-scaled std). Keeping the elite unchanged means a
+    good solution is never lost to a bad mutation, so the incumbent best can only
+    improve or hold -- this markedly speeds and stabilizes convergence versus
+    mutating every clone. Returns the next-gen population (size P), with the
+    elite occupying the first n_elite slots."""
     P = losses.shape[0]
     elite = torch.argsort(losses)[:n_elite]                # indices of best
-    # Each elite produces ~P / n_elite offspring (ceil then trim, so the
-    # population stays exactly size P even when P % n_elite != 0).
-    per_parent = -(-P // n_elite)                          # ceil division
-    parents = elite.repeat_interleave(per_parent)[:P]      # (P,) parent index per slot
+    n_child = P - n_elite                                  # mutated-offspring slots
+    # Each elite produces ~n_child / n_elite offspring (ceil then trim, so the
+    # population stays exactly size P even when n_child % n_elite != 0).
+    per_parent = -(-n_child // n_elite)                    # ceil division
+    child_parents = elite.repeat_interleave(per_parent)[:n_child]
+    # Parent index per slot: elite first (kept as-is), then their offspring.
+    parents = torch.cat([elite, child_parents])            # (P,)
 
     new = {
         "W": pop["W"][parents].clone(),
@@ -270,12 +278,14 @@ def select_and_breed(pop, losses, std, n_elite=5):
         "f": pop["f"][parents].clone(),
         "J": [Wmat[parents].clone() for Wmat in pop["J"]],
     }
-    # Mutate: add C^{-1/2} N(0, MUT_STD) to every parameter.
-    new["W"] += std["W"] * torch.randn_like(new["W"])
-    new["b"] += std["b"] * torch.randn_like(new["b"])
-    new["f"] += std["f"] * torch.randn_like(new["f"])
+    # Mutate offspring only (slots n_elite:); the elite (slots :n_elite) are
+    # carried over unchanged. Mutation adds C^{-1/2} N(0, MUT_STD) per parameter.
+    ch = slice(n_elite, P)
+    new["W"][ch] += std["W"] * torch.randn_like(new["W"][ch])
+    new["b"][ch] += std["b"] * torch.randn_like(new["b"][ch])
+    new["f"][ch] += std["f"] * torch.randn_like(new["f"][ch])
     for Wmat, sJ in zip(new["J"], std["J"]):
-        Wmat += sJ * torch.randn_like(Wmat)
+        Wmat[ch] += sJ * torch.randn_like(Wmat[ch])
     return new
 
 
