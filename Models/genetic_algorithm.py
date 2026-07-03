@@ -212,6 +212,46 @@ def output_curve(params, z, M=1000, m_chunk=None, device="cpu", **kw):
     return y[0].cpu().numpy()
 
 
+@torch.no_grad()
+def sample_output_pool(params, z, S, m_chunk=None, tf=1.0, dt=1e-3,
+                       beta=10.0, mu=1.0, device="cpu", compile_step=False):
+    """Draw S independent single-shot readouts of one trained computer.
+
+    Unlike output_curve (which averages the samples into y(z)), this returns the
+    raw per-sample outputs Y, shape (K, S), where Y[:, a] = sum_i f_i x_i^{(a)}(z, tf)
+    for reset-sample a over the K inputs z (numpy). Averaging any M columns gives
+    an M-sample estimate of y(z), so a caller can study how error falls with M
+    without re-simulating. Samples run in m_chunk batches to cap memory."""
+    J2, J3, J4 = J_INTRINSIC
+    pop = params_to_pop(params, device)          # P = 1 population
+    zt = torch.as_tensor(z, dtype=torch.float32, device=device)
+    K = zt.shape[0]
+    if m_chunk is None or m_chunk > S:
+        m_chunk = S
+    f = pop["f"]                                  # (1, N_OUT)
+
+    Jc = coupling_matrices(pop)                   # (1, N, N)
+    ext = pop["b"].new_zeros(1, K, N)
+    ext[:, :, INPUT_IDX] = zt[None, :, None] * pop["W"][:, None, :]
+    field4 = (ext - pop["b"][:, None, :]).unsqueeze(2)     # (1, K, 1, N)
+
+    noise_amp = (2.0 * mu * (1.0 / beta) * dt) ** 0.5
+    n_steps = int(round(tf / dt))
+    consts = (2.0 * J2, 3.0 * J3, 4.0 * J4, mu * dt, noise_amp)
+    use_compile = compile_step and pop["b"].is_cuda
+
+    out = pop["b"].new_zeros(K, S)
+    filled = 0
+    while filled < S:
+        m = min(m_chunk, S - filled)             # (population, input, sample, neuron)
+        x = _integrate(lambda: pop["b"].new_zeros(1, K, m, N),
+                       Jc, field4, consts, n_steps, use_compile)
+        Y = (x[:, :, :, OUTPUT_IDX] * f[:, None, None, :]).sum(dim=-1)  # (1, K, m)
+        out[:, filled:filled + m] = Y[0]
+        filled += m
+    return out.cpu().numpy()
+
+
 # --- Multi-GPU evaluation -------------------------------------------------
 def as_devices(devices):
     """Normalize the devices argument: None -> None; an int n -> the first n
