@@ -194,6 +194,31 @@ def population_loss(pop, z, var_weight=0.0, loss_mode="squared", **kw):
     raise ValueError(f"unknown loss_mode {loss_mode!r}")
 
 
+@torch.no_grad()
+def population_loss_components(pop, z, var_weight=0.0, loss_mode="squared", **kw):
+    """Like population_loss, but also returns the bias and variance parts -- all
+    from one simulation. Returns (full, bias2, var_mean), each shape (P,):
+      bias2    = mean_z (target - y)^2   -- var-free fidelity to the target,
+      var_mean = mean_z Var[y]           -- per-sample output variance,
+      full     = the selection loss (identical to population_loss): for "squared",
+                 bias2 + var_weight*var_mean; for "rms", mean_z sqrt(bias^2 +
+                 var_weight*Var).
+    This lets train() log a var-free "bias_history" alongside the combined loss at
+    no extra simulation cost (the var penalty otherwise hides the true bias when
+    var_weight > 0)."""
+    y, var = _simulate_yvar(pop, z, **kw)
+    bias2_z = (target(z)[None, :] - y) ** 2      # (P, K)
+    bias2 = bias2_z.mean(dim=1)                   # (P,)
+    var_mean = var.mean(dim=1)                    # (P,)
+    if loss_mode == "rms":
+        full = torch.sqrt(bias2_z + var_weight * var).mean(dim=1)
+    elif loss_mode == "squared":
+        full = bias2 + var_weight * var_mean
+    else:
+        raise ValueError(f"unknown loss_mode {loss_mode!r}")
+    return full, bias2, var_mean
+
+
 def params_to_pop(params, device="cpu"):
     """Wrap a single computer's numpy weights (W, b, f, J list) into a P=1
     population of torch tensors, so the batched simulators can run on it."""
@@ -347,15 +372,22 @@ def save_best(pop, losses, path):
     np.savez(path, **arrs)
 
 
-def save_run(path, pop, losses, history, config):
+def save_run(path, pop, losses, history, config, bias_history=None):
     """Save a training run to a .npz: the best computer's weights (W, b, f, J*),
     the per-generation loss history, and config scalars (cfg_*). This is enough
-    to reproduce the loss curve (Fig 2c) and recompute the output y(z) (Fig 2d)."""
+    to reproduce the loss curve (Fig 2c) and recompute the output y(z) (Fig 2d).
+
+    bias_history, if given, is the per-generation var-free loss (mean_z bias^2) of
+    the selected-best computer, saved as "bias_history". With var_weight > 0 the
+    combined loss_history is dominated by the variance penalty, so this is what to
+    plot to see how well the computer actually fits the target over training."""
     b = int(losses.argmin())
     arrs = {"W": pop["W"][b].detach().cpu().numpy(),
             "b": pop["b"][b].detach().cpu().numpy(),
             "f": pop["f"][b].detach().cpu().numpy(),
             "loss_history": np.asarray(history, dtype=np.float64)}
+    if bias_history is not None:
+        arrs["bias_history"] = np.asarray(bias_history, dtype=np.float64)
     for l, Jm in enumerate(pop["J"]):
         arrs[f"J{l}"] = Jm[b].detach().cpu().numpy()
     for k, v in config.items():
@@ -389,7 +421,9 @@ def train(generations=500, P=50, n_elite=5, K=250, M=128, device=None,
     (set print_every=1 for per-generation updates when speed-testing). If
     save_path is given, a run record (best weights + loss history + config) is
     checkpointed there every checkpoint_every generations and at the end; load it
-    with load_run to reproduce Fig 2c/2d. Returns (final population, history)."""
+    with load_run to reproduce Fig 2c/2d. The record also stores a per-generation
+    "bias_history" (var-free loss of the selected-best computer) next to the
+    combined "loss_history". Returns (final population, history)."""
     dev_list = as_devices(devices)
     if dev_list and len(dev_list) > 1:
         main = dev_list[0]
@@ -415,19 +449,28 @@ def train(generations=500, P=50, n_elite=5, K=250, M=128, device=None,
            "f": std["f"].to(main), "J": [s.to(main) for s in std["J"]]}
 
     pop = init_population(P, device=main)
-    history = []
+    history, bias_history = [], []
     last_t, last_gen = time.time(), 0
     for gen in range(generations):
+        # The single-device path also returns each computer's var-free bias (from
+        # the same simulation); the multi-GPU sharded path returns the combined
+        # loss only, so bias is recorded as NaN there.
         if dev_list:
             losses = population_loss_sharded(pop, z, dev_list, M=M, **sim_kw)
+            bias2 = None
         else:
-            losses = population_loss(pop, z, M=M, **sim_kw)
+            losses, bias2, _ = population_loss_components(pop, z, M=M, **sim_kw)
         # A computer whose dynamics blew up (NaN/inf loss) must never be selected
         # as elite or saved as "best": map NaN -> inf so min/argmin/argsort all
         # rank it last instead of propagating NaN into the checkpoint.
         losses = torch.nan_to_num(losses, nan=float("inf"), posinf=float("inf"))
-        best = losses.min().item()
+        best_idx = int(losses.argmin())
+        best = losses[best_idx].item()
         history.append(best)
+        # Var-free loss of that same selected-best computer (NaN on the sharded
+        # path). With var_weight > 0 this is far below the combined `best`.
+        bias_history.append(float(bias2[best_idx]) if bias2 is not None
+                            else float("nan"))
         if gen % print_every == 0:
             now = time.time()
             per = (now - last_t) / max(gen - last_gen, 1)   # avg since last print
@@ -435,7 +478,8 @@ def train(generations=500, P=50, n_elite=5, K=250, M=128, device=None,
             last_t, last_gen = now, gen
         if save_path and (gen == generations - 1
                           or (checkpoint_every and gen % checkpoint_every == 0)):
-            save_run(save_path, pop, losses, history, config)
+            save_run(save_path, pop, losses, history, config,
+                     bias_history=bias_history)
         pop = select_and_breed(pop, losses, std, n_elite=n_elite)
     return pop, history
 
