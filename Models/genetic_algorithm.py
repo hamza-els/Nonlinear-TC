@@ -22,13 +22,19 @@ MUT_STD = 0.1     # base mutation std, before fan-in scaling   [variance 1e-2]
 
 # --- Per-neuron fan-in (for scaling mutations) ----------------------------
 def neuron_fanin():
-    """In-degree of each neuron (adjacent layer sizes + inputs), shape (N,)."""
+    """Feedforward in-degree of each neuron, shape (N,): the number of signals
+    feeding *into* it from the layer above (the previous layer's size, or the
+    N_INPUTS external inputs for layer 0).
+
+    The paper (S3 B) sets C = "the number of connections entering neuron j",
+    citing LeCun-style fan-in, which counts a unit's inputs -- not its total
+    undirected degree. We previously used total degree (prev + next + inputs),
+    which made W mutations 3x and J mutations 1.2-1.7x smaller than this
+    reading; that run escaped the ~0.5 loss plateau at gen ~870 vs the paper's
+    ~300-400, consistent with plateau escape being mutation-scale limited."""
     fanin = torch.zeros(N)
-    L = len(LAYERS)
-    for l in range(L):
-        prev_sz = LAYERS[l - 1] if l > 0 else 0
-        next_sz = LAYERS[l + 1] if l < L - 1 else 0
-        c = prev_sz + next_sz + (N_INPUTS if l == 0 else 0)
+    for l in range(len(LAYERS)):
+        c = LAYERS[l - 1] if l > 0 else N_INPUTS
         fanin[OFF[l]:OFF[l + 1]] = c
     return fanin
 
@@ -320,22 +326,21 @@ def population_loss_sharded(pop, z, devices, **kw):
 # --- Genetic algorithm ----------------------------------------------------
 @torch.no_grad()
 def select_and_breed(pop, losses, std, n_elite=5):
-    """Elitist selection. Carry the n_elite lowest-loss computers over
-    *unmutated* (elitism), and fill the remaining P - n_elite slots with mutated
-    clones of the elite (fan-in-scaled std). Keeping the elite unchanged means a
-    good solution is never lost to a bad mutation, so the incumbent best can only
-    improve or hold -- this markedly speeds and stabilizes convergence versus
-    mutating every clone. Returns the next-gen population (size P), with the
-    elite occupying the first n_elite slots."""
+    """Keep the n_elite lowest-loss computers, clone them back to size P, and
+    mutate every clone (fan-in-scaled std). Returns the next-gen population.
+
+    Note: every clone is mutated, per the paper (S3 B: the 5 selected are
+    "cloned and mutated to produce a new population of 50"). An elitist variant
+    that carried the elite over unmutated was tried and made things worse: with
+    var_weight > 0 the population locked onto the constant-output attractor
+    (bias ~0.5, variance ~0) and never escaped, and even at var_weight = 0 the
+    plateau escape slowed. Don't re-add elitism without re-testing that case."""
     P = losses.shape[0]
     elite = torch.argsort(losses)[:n_elite]                # indices of best
-    n_child = P - n_elite                                  # mutated-offspring slots
-    # Each elite produces ~n_child / n_elite offspring (ceil then trim, so the
-    # population stays exactly size P even when n_child % n_elite != 0).
-    per_parent = -(-n_child // n_elite)                    # ceil division
-    child_parents = elite.repeat_interleave(per_parent)[:n_child]
-    # Parent index per slot: elite first (kept as-is), then their offspring.
-    parents = torch.cat([elite, child_parents])            # (P,)
+    # Each elite produces ~P / n_elite offspring (ceil then trim, so the
+    # population stays exactly size P even when P % n_elite != 0).
+    per_parent = -(-P // n_elite)                          # ceil division
+    parents = elite.repeat_interleave(per_parent)[:P]      # (P,) parent index per slot
 
     new = {
         "W": pop["W"][parents].clone(),
@@ -343,14 +348,12 @@ def select_and_breed(pop, losses, std, n_elite=5):
         "f": pop["f"][parents].clone(),
         "J": [Wmat[parents].clone() for Wmat in pop["J"]],
     }
-    # Mutate offspring only (slots n_elite:); the elite (slots :n_elite) are
-    # carried over unchanged. Mutation adds C^{-1/2} N(0, MUT_STD) per parameter.
-    ch = slice(n_elite, P)
-    new["W"][ch] += std["W"] * torch.randn_like(new["W"][ch])
-    new["b"][ch] += std["b"] * torch.randn_like(new["b"][ch])
-    new["f"][ch] += std["f"] * torch.randn_like(new["f"][ch])
+    # Mutate: add C^{-1/2} N(0, MUT_STD) to every parameter.
+    new["W"] += std["W"] * torch.randn_like(new["W"])
+    new["b"] += std["b"] * torch.randn_like(new["b"])
+    new["f"] += std["f"] * torch.randn_like(new["f"])
     for Wmat, sJ in zip(new["J"], std["J"]):
-        Wmat[ch] += sJ * torch.randn_like(Wmat[ch])
+        Wmat += sJ * torch.randn_like(Wmat)
     return new
 
 
@@ -441,7 +444,8 @@ def train(generations=500, P=50, n_elite=5, K=250, M=128, device=None,
               "m_chunk": sim_kw.get("m_chunk") or M,
               "var_weight": sim_kw.get("var_weight", 0.0),
               "loss_mode": sim_kw.get("loss_mode", "squared"),
-              "init_std": INIT_STD, "mut_std": MUT_STD}
+              "init_std": INIT_STD, "mut_std": MUT_STD,
+              "fanin": "in_degree"}   # feedforward in-degree C (old runs: total degree)
 
     z = torch.arange(K, device=main, dtype=torch.float32) / (K - 1)
     std = mutation_std()
