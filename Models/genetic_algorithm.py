@@ -326,21 +326,26 @@ def population_loss_sharded(pop, z, devices, **kw):
 # --- Genetic algorithm ----------------------------------------------------
 @torch.no_grad()
 def select_and_breed(pop, losses, std, n_elite=5):
-    """Keep the n_elite lowest-loss computers, clone them back to size P, and
-    mutate every clone (fan-in-scaled std). Returns the next-gen population.
+    """Elitist selection: carry the n_elite lowest-loss computers over
+    *unmutated*, and fill the remaining P - n_elite slots with mutated clones
+    of the elite (fan-in-scaled std). Returns the next-gen population (size P),
+    with the elite occupying the first n_elite slots.
 
-    Note: every clone is mutated, per the paper (S3 B: the 5 selected are
-    "cloned and mutated to produce a new population of 50"). An elitist variant
-    that carried the elite over unmutated was tried and made things worse: with
-    var_weight > 0 the population locked onto the constant-output attractor
-    (bias ~0.5, variance ~0) and never escaped, and even at var_weight = 0 the
-    plateau escape slowed. Don't re-add elitism without re-testing that case."""
+    Experiment log: elitism was first tried with the old total-degree fan-in
+    (W mutations 3x too small) and failed -- var-penalized runs locked onto the
+    constant-output attractor (bias ~0.5, variance ~0) and never escaped. This
+    is the retest with the corrected in-degree fan-in, to separate the effect
+    of elitism from that of the mutation scale. The paper's scheme (S3 B)
+    mutates every clone; if this retest also fails, revert to that."""
     P = losses.shape[0]
     elite = torch.argsort(losses)[:n_elite]                # indices of best
-    # Each elite produces ~P / n_elite offspring (ceil then trim, so the
-    # population stays exactly size P even when P % n_elite != 0).
-    per_parent = -(-P // n_elite)                          # ceil division
-    parents = elite.repeat_interleave(per_parent)[:P]      # (P,) parent index per slot
+    n_child = P - n_elite                                  # mutated-offspring slots
+    # Each elite produces ~n_child / n_elite offspring (ceil then trim, so the
+    # population stays exactly size P even when n_child % n_elite != 0).
+    per_parent = -(-n_child // n_elite)                    # ceil division
+    child_parents = elite.repeat_interleave(per_parent)[:n_child]
+    # Parent index per slot: elite first (kept as-is), then their offspring.
+    parents = torch.cat([elite, child_parents])            # (P,)
 
     new = {
         "W": pop["W"][parents].clone(),
@@ -348,12 +353,14 @@ def select_and_breed(pop, losses, std, n_elite=5):
         "f": pop["f"][parents].clone(),
         "J": [Wmat[parents].clone() for Wmat in pop["J"]],
     }
-    # Mutate: add C^{-1/2} N(0, MUT_STD) to every parameter.
-    new["W"] += std["W"] * torch.randn_like(new["W"])
-    new["b"] += std["b"] * torch.randn_like(new["b"])
-    new["f"] += std["f"] * torch.randn_like(new["f"])
+    # Mutate offspring only (slots n_elite:); the elite (slots :n_elite) are
+    # carried over unchanged. Mutation adds C^{-1/2} N(0, MUT_STD) per parameter.
+    ch = slice(n_elite, P)
+    new["W"][ch] += std["W"] * torch.randn_like(new["W"][ch])
+    new["b"][ch] += std["b"] * torch.randn_like(new["b"][ch])
+    new["f"][ch] += std["f"] * torch.randn_like(new["f"][ch])
     for Wmat, sJ in zip(new["J"], std["J"]):
-        Wmat += sJ * torch.randn_like(Wmat)
+        Wmat[ch] += sJ * torch.randn_like(Wmat[ch])
     return new
 
 
@@ -454,7 +461,8 @@ def train(generations=500, P=50, n_elite=5, K=250, M=128, device=None,
               "var_weight": sim_kw.get("var_weight", 0.0),
               "loss_mode": sim_kw.get("loss_mode", "squared"),
               "init_std": INIT_STD, "mut_std": MUT_STD,
-              "fanin": "in_degree"}   # feedforward in-degree C (old runs: total degree)
+              "fanin": "in_degree",   # feedforward in-degree C (old runs: total degree)
+              "breeding": "elitist"}  # elite kept unmutated (paper: mutate_all)
 
     z = torch.arange(K, device=main, dtype=torch.float32) / (K - 1)
     std = mutation_std()
