@@ -375,7 +375,8 @@ def save_best(pop, losses, path):
     np.savez(path, **arrs)
 
 
-def save_run(path, pop, losses, history, config, bias_history=None):
+def save_run(path, pop, losses, history, config, bias_history=None,
+             var_history=None):
     """Save a training run to a .npz: the best computer's weights (W, b, f, J*),
     the per-generation loss history, and config scalars (cfg_*). This is enough
     to reproduce the loss curve (Fig 2c) and recompute the output y(z) (Fig 2d).
@@ -383,7 +384,12 @@ def save_run(path, pop, losses, history, config, bias_history=None):
     bias_history, if given, is the per-generation var-free loss (mean_z bias^2) of
     the selected-best computer, saved as "bias_history". With var_weight > 0 the
     combined loss_history is dominated by the variance penalty, so this is what to
-    plot to see how well the computer actually fits the target over training."""
+    plot to see how well the computer actually fits the target over training.
+
+    var_history, if given, is the per-generation per-sample output variance
+    (mean_z Var[y]) of that same computer, saved as "var_history". Unlike the
+    (loss - bias)/var_weight derivation, this is available even when
+    var_weight = 0, where the variance never enters the loss."""
     b = int(losses.argmin())
     arrs = {"W": pop["W"][b].detach().cpu().numpy(),
             "b": pop["b"][b].detach().cpu().numpy(),
@@ -391,6 +397,8 @@ def save_run(path, pop, losses, history, config, bias_history=None):
             "loss_history": np.asarray(history, dtype=np.float64)}
     if bias_history is not None:
         arrs["bias_history"] = np.asarray(bias_history, dtype=np.float64)
+    if var_history is not None:
+        arrs["var_history"] = np.asarray(var_history, dtype=np.float64)
     for l, Jm in enumerate(pop["J"]):
         arrs[f"J{l}"] = Jm[b].detach().cpu().numpy()
     for k, v in config.items():
@@ -424,9 +432,10 @@ def train(generations=500, P=50, n_elite=5, K=250, M=128, device=None,
     (set print_every=1 for per-generation updates when speed-testing). If
     save_path is given, a run record (best weights + loss history + config) is
     checkpointed there every checkpoint_every generations and at the end; load it
-    with load_run to reproduce Fig 2c/2d. The record also stores a per-generation
-    "bias_history" (var-free loss of the selected-best computer) next to the
-    combined "loss_history". Returns (final population, history)."""
+    with load_run to reproduce Fig 2c/2d. The record also stores per-generation
+    "bias_history" (var-free loss) and "var_history" (per-sample output variance)
+    of the selected-best computer next to the combined "loss_history".
+    Returns (final population, history)."""
     dev_list = as_devices(devices)
     if dev_list and len(dev_list) > 1:
         main = dev_list[0]
@@ -453,17 +462,17 @@ def train(generations=500, P=50, n_elite=5, K=250, M=128, device=None,
            "f": std["f"].to(main), "J": [s.to(main) for s in std["J"]]}
 
     pop = init_population(P, device=main)
-    history, bias_history = [], []
+    history, bias_history, var_history = [], [], []
     last_t, last_gen = time.time(), 0
     for gen in range(generations):
-        # The single-device path also returns each computer's var-free bias (from
-        # the same simulation); the multi-GPU sharded path returns the combined
-        # loss only, so bias is recorded as NaN there.
+        # The single-device path also returns each computer's var-free bias and
+        # output variance (from the same simulation); the multi-GPU sharded path
+        # returns the combined loss only, so both are recorded as NaN there.
         if dev_list:
             losses = population_loss_sharded(pop, z, dev_list, M=M, **sim_kw)
-            bias2 = None
+            bias2 = var_mean = None
         else:
-            losses, bias2, _ = population_loss_components(pop, z, M=M, **sim_kw)
+            losses, bias2, var_mean = population_loss_components(pop, z, M=M, **sim_kw)
         # A computer whose dynamics blew up (NaN/inf loss) must never be selected
         # as elite or saved as "best": map NaN -> inf so min/argmin/argsort all
         # rank it last instead of propagating NaN into the checkpoint.
@@ -471,10 +480,13 @@ def train(generations=500, P=50, n_elite=5, K=250, M=128, device=None,
         best_idx = int(losses.argmin())
         best = losses[best_idx].item()
         history.append(best)
-        # Var-free loss of that same selected-best computer (NaN on the sharded
-        # path). With var_weight > 0 this is far below the combined `best`.
+        # Var-free loss and output variance of that same selected-best computer
+        # (NaN on the sharded path). With var_weight > 0 the combined `best` is
+        # dominated by var_weight * var, far above the bias term.
         bias_history.append(float(bias2[best_idx]) if bias2 is not None
                             else float("nan"))
+        var_history.append(float(var_mean[best_idx]) if var_mean is not None
+                           else float("nan"))
         if gen % print_every == 0:
             now = time.time()
             per = (now - last_t) / max(gen - last_gen, 1)   # avg since last print
@@ -483,7 +495,7 @@ def train(generations=500, P=50, n_elite=5, K=250, M=128, device=None,
         if save_path and (gen == generations - 1
                           or (checkpoint_every and gen % checkpoint_every == 0)):
             save_run(save_path, pop, losses, history, config,
-                     bias_history=bias_history)
+                     bias_history=bias_history, var_history=var_history)
         pop = select_and_breed(pop, losses, std, n_elite=n_elite)
     return pop, history
 
