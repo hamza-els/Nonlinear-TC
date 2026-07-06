@@ -461,6 +461,7 @@ def train(generations=500, P=50, n_elite=5, K=250, M=128, device=None,
               "var_weight": sim_kw.get("var_weight", 0.0),
               "loss_mode": sim_kw.get("loss_mode", "squared"),
               "init_std": INIT_STD, "mut_std": MUT_STD,
+              "layers": LAYERS,       # architecture (runs before 4x8 didn't record it: those are [8,8,8,8])
               "fanin": "in_degree",   # feedforward in-degree C (old runs: total degree)
               "breeding": "elitist"}  # elite kept unmutated (paper: mutate_all)
 

@@ -2,9 +2,12 @@ import torch
 import torch.nn as nn
 
 # --- Network architecture -------------------------------------------------
-# Width 8, depth 4 (paper, Sec. S3 C). The 8 final-layer neurons are the
-# outputs; the scalar y is their f-weighted sum (Eq. 9).
-LAYERS = [8, 8, 8, 8]
+# Width 4, depth 8 (the paper, Sec. S3 C, uses width 8 / depth 4 -- same 32
+# neurons, reshaped deep-and-narrow). The final-layer neurons are the outputs;
+# the scalar y is their f-weighted sum (Eq. 9). NOTE: saved runs record their
+# architecture as cfg_layers; runs trained at a different shape cannot be
+# re-simulated with this module's constants.
+LAYERS = [4, 4, 4, 4, 4, 4, 4, 4]
 N = sum(LAYERS)                          # total neurons (= 32)
 OFFSETS = torch.cumsum(torch.tensor([0] + LAYERS), 0)  # start index of each layer
 INPUT_IDX = torch.arange(OFFSETS[0], OFFSETS[1])        # layer-0 neurons (take input z)
