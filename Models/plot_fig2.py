@@ -33,7 +33,8 @@ import torch
 from genetic_algorithm import load_run, output_curve
 
 
-def plot(run_path, out_path="fig2_cdef.png", M_eval=None, device=None):
+def plot(run_path, out_path="fig2_cdef.png", M_eval=None, device=None,
+         title=None):
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
     params, history, cfg = load_run(run_path)
     raw = np.load(run_path)
@@ -41,7 +42,10 @@ def plot(run_path, out_path="fig2_cdef.png", M_eval=None, device=None):
     history = np.asarray(history)
     n = np.arange(len(history))
 
-    fig, (axc, axd, axe, axf) = plt.subplots(1, 4, figsize=(20, 4))
+    # 2x2 cluster: (c) loss, (d) output on top; (e) bias, (f) variance below.
+    fig, ((axc, axd), (axe, axf)) = plt.subplots(2, 2, figsize=(10, 8))
+    if title:
+        fig.suptitle(title, fontsize=15)
 
     # --- (c) combined loss vs evolutionary time --------------------------
     axc.plot(n, history, color="tab:green", lw=1.0)
@@ -106,7 +110,7 @@ def plot(run_path, out_path="fig2_cdef.png", M_eval=None, device=None):
         axf.text(0.5, 0.5, reason, ha="center", va="center",
                  transform=axf.transAxes, color="0.5")
 
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, 0, 1, 0.96) if title else None)
     fig.savefig(out_path, dpi=150)
     print(f"saved {out_path}")
 
@@ -115,11 +119,12 @@ def main():
     if len(sys.argv) > 1:
         plot(sys.argv[1])
         return
-    runs = [("runs/run_reg.npz", "regular"),
-            ("runs/run_low_var.npz", "low_var"),
-            ("runs/run_high_var.npz", "high_var")]
-    for path, name in runs:
-        plot(path, out_path=f"../Graphs/computer_graphs/fig2_{name}.png")
+    runs = [("runs/run_reg.npz", "regular", "regular"),
+            ("runs/run_low_var.npz", "low_var", "low var"),
+            ("runs/run_high_var.npz", "high_var", "high var")]
+    for path, name, label in runs:
+        plot(path, out_path=f"../Graphs/computer_graphs/fig2_{name}.png",
+             title=label)
 
 
 if __name__ == "__main__":
