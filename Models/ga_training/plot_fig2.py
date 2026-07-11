@@ -17,7 +17,7 @@ third panel for the var-free (bias) loss.
 
 Usage:
     python plot_fig2.py                 # regenerate all three runs into
-                                        #   ../Graphs/computer_graphs/
+                                        #   ../../Graphs/computer_graphs/
     python plot_fig2.py runs/run.npz    # a single run -> fig2_cdef.png
 """
 
@@ -123,7 +123,7 @@ def main():
             ("runs/run_low_var.npz", "low_var", "low var"),
             ("runs/run_high_var.npz", "high_var", "high var")]
     for path, name, label in runs:
-        plot(path, out_path=f"../Graphs/computer_graphs/fig2_{name}.png",
+        plot(path, out_path=f"../../Graphs/computer_graphs/fig2_{name}.png",
              title=label)
 
 

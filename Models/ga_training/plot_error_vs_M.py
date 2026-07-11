@@ -17,7 +17,7 @@ variance-penalized computers trade bias for a tighter readout (they start lower
 near its bias floor at all M.
 
 Usage:
-    python plot_error_vs_M.py            # -> ../Graphs/computer_graphs/fig_error_vs_M.png
+    python plot_error_vs_M.py            # -> ../../Graphs/computer_graphs/fig_error_vs_M.png
 """
 
 import numpy as np
@@ -55,7 +55,7 @@ def error_vs_M(params, cfg, M_grid, n_runs=100, K=250, device="cpu"):
     return np.array(mean_err), np.array(std_err)
 
 
-def plot(out_path="../Graphs/computer_graphs/fig_error_vs_M.png", n_runs=100,
+def plot(out_path="../../Graphs/computer_graphs/fig_error_vs_M.png", n_runs=100,
          M_max=1000, K=250, device=None):
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
     M_grid = np.unique(np.round(np.logspace(0, np.log10(M_max), 18)).astype(int))
