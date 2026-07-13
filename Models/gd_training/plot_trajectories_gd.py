@@ -16,6 +16,7 @@ Usage:
 """
 
 import os
+import sys
 
 import numpy as np
 import matplotlib
@@ -32,17 +33,21 @@ OUT_PATH = "../../Graphs/gd_graphs/fig_trajectories.png"
 
 
 def main():
-    torch.manual_seed(0)
-    student, teacher, stats = run()
+    seed = int(sys.argv[1]) if len(sys.argv) > 1 else 0
+    torch.manual_seed(seed)
+    student, teacher, stats = run(seed=seed)
+
+    device = student.b.device
 
     # --- trajectories at three representative inputs ----------------------
-    z3 = torch.tensor([0.25, 0.5, 0.75])
+    z3 = torch.tensor([0.25, 0.5, 0.75], device=device)
     A3 = student_targets(teacher, z3)                       # (3, N)
     ideal3 = idealized_trajectory(A3)                       # (K+1, 3, N)
     with torch.no_grad():
         steps, mean3 = student.mean_trajectory(z3, M=200, record_every=10,
                                                seed=0)     # (T, 3, N)
-    ideal3_sub = ideal3[steps]                              # (T, 3, N)
+    mean3 = mean3.cpu()
+    ideal3_sub = ideal3[steps].cpu()                        # (T, 3, N)
     t_frac = steps.numpy() * DT / TF
 
     # Track the same nodes in every panel: output + 3 largest-|target| hidden.
@@ -52,14 +57,14 @@ def main():
     names = [f"hidden {i}" for i in nodes[:3]] + ["output"]
 
     # --- per-node RMS deviation over a z-grid -----------------------------
-    zg = torch.linspace(0.0, 1.0, 21)
+    zg = torch.linspace(0.0, 1.0, 21, device=device)
     Ag = student_targets(teacher, zg)
     idealg = idealized_trajectory(Ag)
     with torch.no_grad():
         steps_g, meang = student.mean_trajectory(zg, M=100, record_every=20,
                                                  seed=1)
     dev = (meang - idealg[steps_g]) ** 2                    # (T, 21, N)
-    node_rms = dev.mean(dim=(0, 1)).sqrt().numpy()          # (N,)
+    node_rms = dev.mean(dim=(0, 1)).sqrt().cpu().numpy()    # (N,)
 
     # --- figure ------------------------------------------------------------
     fig, axes = plt.subplots(2, 2, figsize=(11, 8))
@@ -72,7 +77,7 @@ def main():
                     lw=lw * 0.8)
         ax.set_xlabel(r"$t/t_f$")
         ax.set_ylabel(r"$x_i(t)$")
-        ax.set_title(f"z = {z3[zi]:.2f}")
+        ax.set_title(f"z = {z3[zi].item():.2f}")
     axes.flat[0].legend(frameon=False, fontsize=8, loc="upper left")
 
     axd = axes.flat[3]

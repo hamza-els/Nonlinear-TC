@@ -48,13 +48,14 @@ import torch.nn as nn
 from digital_net import N, HIDDEN, N_OUT
 
 # --- Physics constants -----------------------------------------------------
-# Paper convention (Sec. III): J2 = J4 = kBT, energies displayed in units of
-# kBT. We set kT = 1 and J2 = J4 = 1, i.e. J2 = J4 = kBT exactly. NOTE: this
-# deviates from ga_training/cosine_training_torch.py, which uses beta = 10
-# (10x stiffer wells relative to noise) -- GA/GD losses are not directly
-# comparable after this change.
+# "Cold" units: J2 = J4 = 1 with kT = 0.1 (beta = 10, matching ga_training).
+# This runs the computer 10x colder relative to its well depth than the
+# paper's J2 = J4 = kBT convention: equilibrium fluctuations sigma^2 drop from
+# ~0.4 to ~0.05, taming both single-shot readout noise and the <x^3>
+# noise-rectification that pulls the mean dynamics off the T=0 ideal path
+# (stiffening correction 12 sigma^2: ~250% at kT=1 -> ~30% here).
 J2, J4 = 1.0, 1.0
-BETA = 1.0
+BETA = 10.0
 KT = 1.0 / BETA
 MU = 1.0
 # Observation time (units of 1/mu). The paper uses tf = 1/5, but its inputs

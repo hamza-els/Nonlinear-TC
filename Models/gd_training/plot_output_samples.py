@@ -16,6 +16,7 @@ Usage:
 """
 
 import os
+import sys
 
 import numpy as np
 import matplotlib
@@ -31,21 +32,23 @@ OUT_PATH = "../../Graphs/gd_graphs/fig_output_samples.png"
 
 
 def main():
-    torch.manual_seed(0)
-    student, teacher, stats = run()
+    seed = int(sys.argv[1]) if len(sys.argv) > 1 else 0
+    torch.manual_seed(seed)
+    student, teacher, stats = run(seed=seed)
 
     K = 250
-    z = torch.linspace(0.0, 1.0, K)
+    device = student.b.device
+    z = torch.linspace(0.0, 1.0, K, device=device)
     with torch.no_grad():
         yt = teacher(z)                                              # (K,)
         y1 = student.sample_outputs(z, M=1, seed=123).reshape(-1)    # (K,)
         y20 = student.sample_outputs(z, M=20, seed=456).mean(dim=1)  # (K,)
     y0 = target(z)
 
-    zn, y0n = z.numpy(), y0.numpy()
-    panels = [(yt.numpy(), "tab:blue", "teacher", "teacher (digital)"),
-              (y1.numpy(), "tab:green", "y(z), M=1", "student, M = 1"),
-              (y20.numpy(), "tab:green", "y(z), M=20", "student, M = 20")]
+    zn, y0n = z.cpu().numpy(), y0.cpu().numpy()
+    panels = [(yt.cpu().numpy(), "tab:blue", "teacher", "teacher (digital)"),
+              (y1.cpu().numpy(), "tab:green", "y(z), M=1", "student, M = 1"),
+              (y20.cpu().numpy(), "tab:green", "y(z), M=20", "student, M = 20")]
 
     fig, axes = plt.subplots(1, 3, figsize=(14, 4), sharey=True)
     for ax, (y, color, label, title) in zip(axes, panels):

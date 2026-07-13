@@ -105,10 +105,11 @@ def evaluate(student, K=101, M=256, seed=0, device="cpu"):
 
 
 def run(teacher_epochs=3000, K=128, student_rounds=30, act_scale=1.0,
-        eval_M=256, device="cpu", save_path=None, seed=0):
+        eval_M=256, device=None, save_path=None, seed=0):
     """Full teacher -> student pipeline. Returns (student, teacher, stats)."""
+    device = device or ("cuda" if torch.cuda.is_available() else "cpu")
     t0 = time.time()
-    print("[1/3] training digital teacher ...")
+    print(f"[1/3] training digital teacher ...  (device: {device})")
     teacher = train_teacher(epochs=teacher_epochs, K=max(K, 256),
                             seed=seed, device=device)
     z = torch.linspace(0.0, 1.0, K, device=device)

@@ -18,7 +18,7 @@ import torch
 import torch.nn as nn
 
 # --- Architecture ---------------------------------------------------------
-WIDTH = 16
+WIDTH = 32
 DEPTH = 2                      # number of hidden layers
 HIDDEN = WIDTH * DEPTH         # 32 hidden neurons total
 N_OUT = 1                      # single scalar output (the cosine prediction)

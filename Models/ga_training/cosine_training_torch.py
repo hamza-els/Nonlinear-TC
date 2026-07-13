@@ -7,7 +7,7 @@ import torch.nn as nn
 # the scalar y is their f-weighted sum (Eq. 9). NOTE: saved runs record their
 # architecture as cfg_layers; runs trained at a different shape cannot be
 # re-simulated with this module's constants.
-LAYERS = [4, 4, 4, 4, 4, 4, 4, 4]
+LAYERS = [8, 8, 8, 8]
 N = sum(LAYERS)                          # total neurons (= 32)
 OFFSETS = torch.cumsum(torch.tensor([0] + LAYERS), 0)  # start index of each layer
 INPUT_IDX = torch.arange(OFFSETS[0], OFFSETS[1])        # layer-0 neurons (take input z)
