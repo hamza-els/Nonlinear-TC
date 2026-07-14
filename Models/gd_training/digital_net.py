@@ -21,7 +21,7 @@ import torch.nn as nn
 WIDTH = 32
 DEPTH = 2                      # number of hidden layers
 HIDDEN = WIDTH * DEPTH         # 32 hidden neurons total
-N_OUT = 1                      # single scalar output (the cosine prediction)
+N_OUT = 8                      # tanh output neurons, linearly combined to y
 N = HIDDEN + N_OUT             # total non-input degrees of freedom
 N_IN = 6                       # input channels: features(z) = (z, ..., z^6)
 
@@ -57,6 +57,11 @@ class DigitalCosineNet(nn.Module):
             nn.Linear(dims[l], dims[l + 1]) for l in range(depth)
         )
         self.out = nn.Linear(width, N_OUT)
+        # Learned linear combination of the N_OUT tanh output neurons into the
+        # scalar prediction y.  The thermodynamic student mimics the 8 output
+        # activations; this readout (or a post-hoc LS refit of it) turns its
+        # 8 mean output-node values into y.
+        self.readout = nn.Linear(N_OUT, 1, bias=False)
         # Dropout on hidden activations (active in train() mode only): forces
         # a distributed representation in which no single neuron is
         # load-bearing -- useful here because the thermodynamic student tracks
@@ -67,17 +72,18 @@ class DigitalCosineNet(nn.Module):
     def activations(self, z):
         """Return (y, A) for input z of shape (B,).
 
-        y : (B,)        scalar prediction (== output activation)
-        A : (B, N)      all neuron activations, order [hidden..., output].
-        The hidden activations are post-tanh; the output is linear.
+        y : (B,)        scalar prediction = readout of the 8 output neurons
+        A : (B, N)      all neuron activations, order [hidden..., outputs].
+        Hidden and output activations are post-tanh.
         """
         h = features(z.reshape(-1))
         acts = []
         for layer in self.hidden:
             h = self.drop(torch.tanh(layer(h)))
             acts.append(h)
-        y = self.out(h).reshape(-1)          # linear output neuron
-        acts.append(y.reshape(-1, 1))
+        o = torch.tanh(self.out(h))          # (B, N_OUT) output activations
+        acts.append(o)
+        y = self.readout(o).reshape(-1)      # learned linear combination
         A = torch.cat(acts, dim=1)           # (B, N)
         return y, A
 

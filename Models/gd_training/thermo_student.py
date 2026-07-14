@@ -131,10 +131,13 @@ class ThermoStudent(nn.Module):
     All couplings are bilinear and bidirectional, as in the paper.
     """
 
-    def __init__(self, scale=0.0, seed=0):
+    def __init__(self, scale=0.0, seed=0, oo_couplings=True):
         # Paper: training starts from theta = 0 (scale=0.0, the default).
         # Pass scale > 0 for a small random init instead.
+        # oo_couplings=False removes the output <-> output couplings (they
+        # exist in the paper's published code; flag for ablation).
         super().__init__()
+        self.oo_couplings = oo_couplings
         g = torch.Generator().manual_seed(seed)
 
         def init(*shape):
@@ -147,19 +150,28 @@ class ThermoStudent(nn.Module):
         # column per node (hidden and output), as in the paper's pixel bonds.
         self.W = nn.Parameter(init(N_IN, N))
         self.Jhh_raw = nn.Parameter(init(HIDDEN, HIDDEN))  # hidden <-> hidden
-        self.Jho = nn.Parameter(init(HIDDEN))       # hidden <-> output scalars
-        # Post-hoc readout scale c: y = c * <x_out(tf)>.  Not a thermodynamic
-        # parameter (it lives outside the dynamics); fitted by fit_readout().
-        self.register_buffer("readout", torch.ones(()))
+        self.Jho = nn.Parameter(init(HIDDEN, N_OUT))       # hidden <-> output
+        # Output <-> output couplings: present in the paper's published code
+        # (thermo_gd set_interactions has an oo bond class).
+        self.Joo_raw = nn.Parameter(init(N_OUT, N_OUT))
+        # Post-hoc readout weights: y = <x_out(tf)> . w  (N_OUT-vector).  Not
+        # thermodynamic parameters (outside the dynamics); fit_readout() sets
+        # them by least squares against the ground truth.
+        self.register_buffer("readout", torch.ones(N_OUT) / N_OUT)
+
+    @staticmethod
+    def _sym0(Jraw):
+        J = 0.5 * (Jraw + Jraw.t())
+        return J - torch.diag(torch.diag(J))
 
     def coupling(self):
         """Assemble the symmetric N x N coupling matrix with zero diagonal."""
-        Jhh = 0.5 * (self.Jhh_raw + self.Jhh_raw.t())
-        Jhh = Jhh - torch.diag(torch.diag(Jhh))
         Jc = self.b.new_zeros(N, N)
-        Jc[:HIDDEN, :HIDDEN] = Jhh
-        Jc[:HIDDEN, HIDDEN:] = self.Jho.reshape(HIDDEN, N_OUT)
-        Jc[HIDDEN:, :HIDDEN] = self.Jho.reshape(N_OUT, HIDDEN)
+        Jc[:HIDDEN, :HIDDEN] = self._sym0(self.Jhh_raw)
+        Jc[:HIDDEN, HIDDEN:] = self.Jho
+        Jc[HIDDEN:, :HIDDEN] = self.Jho.t()
+        if self.oo_couplings:
+            Jc[HIDDEN:, HIDDEN:] = self._sym0(self.Joo_raw)
         return Jc
 
     def input_field(self, z):
@@ -237,26 +249,27 @@ class ThermoStudent(nn.Module):
         return torch.tensor(steps), traj
 
     def sample_outputs(self, z, **kw):
-        """Per-sample readout y = c * x_out(tf), shape (B, M)."""
+        """Per-sample readout y = x_out(tf) . w, shape (B, M)."""
         x = self._rollout(z, **kw)
-        return self.readout * x[:, :, OUTPUT_IDX].reshape(x.shape[0], -1)
+        return x[:, :, OUTPUT_IDX] @ self.readout
 
     def predict(self, z, **kw):
-        """Scalar prediction y = c * <x_out(tf)>."""
+        """Scalar prediction y = <x_out(tf)> . w."""
         mean_x = self.simulate(z, **kw)
-        return self.readout * mean_x[:, OUTPUT_IDX].reshape(-1)
+        return mean_x[:, OUTPUT_IDX] @ self.readout
 
     @torch.no_grad()
     def fit_readout(self, z, y0, **kw):
-        """Least-squares fit of the readout scale c to ground truth y0(z).
+        """Least-squares fit of the readout weights w to ground truth y0(z).
 
-        Runs the stochastic dynamics once on the grid z and sets
-        c = <x_out . y0> / <x_out . x_out>.  Returns the fitted c.
+        Runs the stochastic dynamics once on the grid z and solves
+        min_w ||Xout w - y0||^2 for the (N_OUT,) weight vector.  Returns
+        ||w|| as a scalar summary (logged as 'c' in run stats).
         """
-        xout = self.simulate(z, **kw)[:, OUTPUT_IDX].reshape(-1)
-        c = (xout @ y0) / (xout @ xout).clamp_min(1e-12)
-        self.readout.copy_(c)
-        return c.item()
+        Xout = self.simulate(z, **kw)[:, OUTPUT_IDX]          # (B, N_OUT)
+        w = torch.linalg.lstsq(Xout, y0.reshape(-1, 1)).solution.reshape(-1)
+        self.readout.copy_(w)
+        return w.norm().item()
 
 
 def main():

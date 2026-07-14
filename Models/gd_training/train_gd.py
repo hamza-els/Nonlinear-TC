@@ -28,22 +28,16 @@ from thermo_student import ThermoStudent, idealized_trajectory, TF, DT
 def student_targets(teacher, z, act_scale=1.0):
     # NOTE: default must match run()'s act_scale default -- plot scripts and
     # calibration call this bare and must see the same targets training used.
-    """Target activations A (B, N): teacher hidden activations + ground truth.
+    """Target activations A (B, N): the teacher's own activations, all nodes.
 
-    The output node's target is cos(2 pi z) itself, not the teacher's output
-    activation -- the output neuron is trained directly on the ground truth.
-
-    All targets are scaled by act_scale (paper: guide biases only proportional
-    to the activations).  Saturated tanh activations (|A| ~ 1) sit deep in the
-    quartic well and need guide fields b0 = 2A + 4A^3 ~ 6 (60 kT) that the
-    student cannot synthesize for every z at once; halving the targets keeps
-    the required fields moderate.  The readout scale c compensates at the
-    output, so the prediction is not shrunk.
+    With N_OUT = 8 tanh output neurons the student mimics the teacher's
+    output-layer activations directly (like the paper's MNIST setup); the
+    ground truth enters only through the linear readout of the 8 output
+    nodes, fitted post-hoc.  Targets are scaled by act_scale.
     """
     with torch.no_grad():
         _, A_all = teacher.activations(z)
-    A = torch.cat([A_all[:, :HIDDEN], target(z).reshape(-1, 1)], dim=1)
-    return act_scale * A
+    return act_scale * A_all
 
 
 def train_student(A, z, rounds=30, rel_tol=1e-5, tf=TF, dt=DT,

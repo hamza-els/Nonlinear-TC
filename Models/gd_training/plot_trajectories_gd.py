@@ -25,7 +25,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import torch
 
-from digital_net import HIDDEN, N
+from digital_net import HIDDEN, N, N_OUT
 from thermo_student import idealized_trajectory, TF, DT
 from train_gd import run, student_targets
 
@@ -92,11 +92,11 @@ def plot_trajectories(student, teacher, out_path=OUT_PATH,
     axes.flat[0].legend(frameon=False, fontsize=8, loc="upper left")
 
     axd = axes.flat[3]
-    bar_colors = ["tab:blue"] * HIDDEN + ["tab:green"]
+    bar_colors = ["tab:blue"] * HIDDEN + ["tab:green"] * N_OUT
     axd.bar(np.arange(N), node_rms, color=bar_colors, width=0.8)
     axd.set_xlabel("node index")
     axd.set_ylabel(r"RMS$_{t,z}\,(\langle x_i\rangle - x_i^{(0)})$")
-    axd.set_title("per-node deviation from ideal (output in green)")
+    axd.set_title("per-node deviation from ideal (outputs in green)")
 
     fig.suptitle(suptitle + "\n(solid = student mean over 200 samples, "
                  "dashed = ideal)", fontsize=12)
