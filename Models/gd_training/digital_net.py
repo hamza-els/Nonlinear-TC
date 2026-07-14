@@ -22,7 +22,19 @@ WIDTH = 32
 DEPTH = 2                      # number of hidden layers
 HIDDEN = WIDTH * DEPTH         # 32 hidden neurons total
 N_OUT = 1                      # single scalar output (the cosine prediction)
-N = HIDDEN + N_OUT             # total non-input degrees of freedom (= 33)
+N = HIDDEN + N_OUT             # total non-input degrees of freedom
+N_IN = 3                       # input channels: features(z) = (z, z^2, z^3)
+
+
+def features(z):
+    """Input features phi(z) = (z, z^2, z^3), shape (B, N_IN).
+
+    Multiple frozen input channels raise the rank of the field the student
+    can apply (sum_k W_k phi_k(z) instead of W z), letting it exert
+    nonlinear-in-z, non-monotone forces from t = 0 -- the scalar-input analog
+    of the paper's 784 pixel channels.  Both teacher and student see them.
+    """
+    return torch.stack([z, z ** 2, z ** 3], dim=-1)
 
 
 def target(z):
@@ -38,13 +50,19 @@ class DigitalCosineNet(nn.Module):
     which is the N-vector A_i used to build the idealized teacher trajectory.
     """
 
-    def __init__(self, width=WIDTH, depth=DEPTH):
+    def __init__(self, width=WIDTH, depth=DEPTH, dropout=0.0):
         super().__init__()
-        dims = [1] + [width] * depth
+        dims = [N_IN] + [width] * depth
         self.hidden = nn.ModuleList(
             nn.Linear(dims[l], dims[l + 1]) for l in range(depth)
         )
         self.out = nn.Linear(width, N_OUT)
+        # Dropout on hidden activations (active in train() mode only): forces
+        # a distributed representation in which no single neuron is
+        # load-bearing -- useful here because the thermodynamic student tracks
+        # each activation target imperfectly, which is exactly the perturbed-
+        # unit regime dropout trains robustness against.
+        self.drop = nn.Dropout(dropout)
 
     def activations(self, z):
         """Return (y, A) for input z of shape (B,).
@@ -53,10 +71,10 @@ class DigitalCosineNet(nn.Module):
         A : (B, N)      all neuron activations, order [hidden..., output].
         The hidden activations are post-tanh; the output is linear.
         """
-        h = z.reshape(-1, 1)
+        h = features(z.reshape(-1))
         acts = []
         for layer in self.hidden:
-            h = torch.tanh(layer(h))
+            h = self.drop(torch.tanh(layer(h)))
             acts.append(h)
         y = self.out(h).reshape(-1)          # linear output neuron
         acts.append(y.reshape(-1, 1))
@@ -68,24 +86,45 @@ class DigitalCosineNet(nn.Module):
 
 
 def train_teacher(width=WIDTH, depth=DEPTH, K=256, epochs=4000, lr=1e-2,
-                  weight_decay=0.0, seed=0, device="cpu", verbose=True):
+                  weight_decay=0.0, act_reg=0.0, sat_reg=0.0, sat_thresh=0.8,
+                  dropout=0.0, seed=0, device="cpu", verbose=True):
     """Fit the digital net to cos(2 pi z) on K evenly spaced points in [0, 1].
 
     Full-batch Adam; deterministic given the seed.  Returns the trained model.
+
+    act_reg > 0 adds an L2 penalty act_reg * mean(A_hidden^2) on the hidden
+    activations: it keeps them away from the tanh saturation rails, which
+    makes them cheaper targets for the thermodynamic student (guide fields
+    grow as 2A + 4A^3).
+
+    sat_reg > 0 adds a SATURATION penalty sat_reg * mean(relu(|A| -
+    sat_thresh)^2) on the hidden activations: unlike act_reg it leaves
+    mid-range amplitudes untouched and only pushes units off the tanh rails.
+    Motivated by the lottery correlation (2026-07-13): student RMSE correlates
+    positively with the teacher's saturated-unit fraction (+0.47, n=10).
     """
     torch.manual_seed(seed)
-    model = DigitalCosineNet(width, depth).to(device)
+    model = DigitalCosineNet(width, depth, dropout=dropout).to(device)
     z = torch.linspace(0.0, 1.0, K, device=device)
     y0 = target(z)
     opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+    model.train()
     for ep in range(epochs):
         opt.zero_grad()
-        y = model(z)
+        y, A = model.activations(z)
         loss = torch.mean((y - y0) ** 2)
+        if act_reg:
+            loss = loss + act_reg * A[:, :HIDDEN].pow(2).mean()
+        if sat_reg:
+            excess = (A[:, :HIDDEN].abs() - sat_thresh).clamp_min(0.0)
+            loss = loss + sat_reg * excess.pow(2).mean()
         loss.backward()
         opt.step()
         if verbose and (ep % max(1, epochs // 10) == 0 or ep == epochs - 1):
             print(f"  teacher epoch {ep:5d}  mse {loss.item():.3e}")
+    # eval() disables dropout: the activations handed to the student as
+    # targets are the deterministic full-network ones.
+    model.eval()
     return model
 
 

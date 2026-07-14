@@ -32,16 +32,21 @@ from train_gd import run, student_targets
 OUT_PATH = "../../Graphs/gd_graphs/fig_trajectories.png"
 
 
-def main():
-    seed = int(sys.argv[1]) if len(sys.argv) > 1 else 0
-    torch.manual_seed(seed)
-    student, teacher, stats = run(seed=seed)
+def plot_trajectories(student, teacher, out_path=OUT_PATH,
+                      suptitle="student node trajectories vs idealized "
+                               "teacher trajectories", gains=None):
+    """Draw the trajectory-comparison figure for a trained (student, teacher).
 
+    gains: optional per-node (N,) multipliers applied to the targets (for
+    students trained on gain-calibrated targets).
+    Returns (mean_node_rms, output_node_rms)."""
     device = student.b.device
 
     # --- trajectories at three representative inputs ----------------------
     z3 = torch.tensor([0.25, 0.5, 0.75], device=device)
     A3 = student_targets(teacher, z3)                       # (3, N)
+    if gains is not None:
+        A3 = A3 * gains
     ideal3 = idealized_trajectory(A3)                       # (K+1, 3, N)
     with torch.no_grad():
         steps, mean3 = student.mean_trajectory(z3, M=200, record_every=10,
@@ -59,6 +64,8 @@ def main():
     # --- per-node RMS deviation over a z-grid -----------------------------
     zg = torch.linspace(0.0, 1.0, 21, device=device)
     Ag = student_targets(teacher, zg)
+    if gains is not None:
+        Ag = Ag * gains
     idealg = idealized_trajectory(Ag)
     with torch.no_grad():
         steps_g, meang = student.mean_trajectory(zg, M=100, record_every=20,
@@ -87,15 +94,23 @@ def main():
     axd.set_ylabel(r"RMS$_{t,z}\,(\langle x_i\rangle - x_i^{(0)})$")
     axd.set_title("per-node deviation from ideal (output in green)")
 
-    fig.suptitle("student node trajectories vs idealized teacher trajectories"
-                 "\n(solid = student mean over 200 samples, dashed = ideal)",
-                 fontsize=12)
-    os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
+    fig.suptitle(suptitle + "\n(solid = student mean over 200 samples, "
+                 "dashed = ideal)", fontsize=12)
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
     fig.tight_layout(rect=(0, 0, 1, 0.94))
-    fig.savefig(OUT_PATH, dpi=150)
-    print(f"saved {OUT_PATH}")
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+    print(f"saved {out_path}")
     print(f"mean node RMS deviation: {node_rms.mean():.4f}   "
           f"output node: {node_rms[-1]:.4f}")
+    return float(node_rms.mean()), float(node_rms[-1])
+
+
+def main():
+    seed = int(sys.argv[1]) if len(sys.argv) > 1 else 0
+    torch.manual_seed(seed)
+    student, teacher, stats = run(seed=seed)
+    plot_trajectories(student, teacher)
 
 
 if __name__ == "__main__":

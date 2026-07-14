@@ -3,9 +3,10 @@
 Trains the teacher + student with the default pipeline settings (fixed seed),
 then plots y(z) on 250 z-points against the target cos(2 pi z):
 
-  left   : digital teacher net (deterministic -- a "single sample" IS the curve)
-  middle : student, M = 1  -- every point is a single stochastic trajectory
-  right  : student, M = 20 -- every point is the average of 20 fresh trajectories
+  panel 1 : digital teacher net (deterministic -- a "single sample" IS the curve)
+  panel 2 : student, M = 1   -- every point is a single stochastic trajectory
+  panel 3 : student, M = 20  -- every point averages 20 fresh trajectories
+  panel 4 : student, M = 100 -- every point averages 100 fresh trajectories
 
 Mirrors the style of ga_training/plot_fig2.py panel (d) (black target,
 tab:green thermo output; tab:blue for the digital teacher) so GA and GD
@@ -31,11 +32,9 @@ from train_gd import run
 OUT_PATH = "../../Graphs/gd_graphs/fig_output_samples.png"
 
 
-def main():
-    seed = int(sys.argv[1]) if len(sys.argv) > 1 else 0
-    torch.manual_seed(seed)
-    student, teacher, stats = run(seed=seed)
-
+def plot_output(student, teacher, out_path=OUT_PATH,
+                suptitle="teacher vs GD-trained student output, 250 z-points"):
+    """Draw the 4-panel output figure for an already-trained (student, teacher)."""
     K = 250
     device = student.b.device
     z = torch.linspace(0.0, 1.0, K, device=device)
@@ -43,14 +42,17 @@ def main():
         yt = teacher(z)                                              # (K,)
         y1 = student.sample_outputs(z, M=1, seed=123).reshape(-1)    # (K,)
         y20 = student.sample_outputs(z, M=20, seed=456).mean(dim=1)  # (K,)
+        y100 = student.sample_outputs(z, M=100, seed=789).mean(dim=1)
     y0 = target(z)
 
     zn, y0n = z.cpu().numpy(), y0.cpu().numpy()
     panels = [(yt.cpu().numpy(), "tab:blue", "teacher", "teacher (digital)"),
               (y1.cpu().numpy(), "tab:green", "y(z), M=1", "student, M = 1"),
-              (y20.cpu().numpy(), "tab:green", "y(z), M=20", "student, M = 20")]
+              (y20.cpu().numpy(), "tab:green", "y(z), M=20", "student, M = 20"),
+              (y100.cpu().numpy(), "tab:green", "y(z), M=100",
+               "student, M = 100")]
 
-    fig, axes = plt.subplots(1, 3, figsize=(14, 4), sharey=True)
+    fig, axes = plt.subplots(1, 4, figsize=(18, 4), sharey=True)
     for ax, (y, color, label, title) in zip(axes, panels):
         rmse = float(np.sqrt(np.mean((y - y0n) ** 2)))
         ax.plot(zn, y0n, "k-", lw=1.5, label="target")
@@ -60,13 +62,20 @@ def main():
         ax.legend(frameon=False, loc="lower center")
     axes[0].set_ylabel("y(z)")
     axes[0].set_ylim(-3.0, 3.0)
-    fig.suptitle("teacher vs GD-trained student output, 250 z-points",
-                 fontsize=13)
+    fig.suptitle(suptitle, fontsize=13)
 
-    os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
     fig.tight_layout()
-    fig.savefig(OUT_PATH, dpi=150)
-    print(f"saved {OUT_PATH}")
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+    print(f"saved {out_path}")
+
+
+def main():
+    seed = int(sys.argv[1]) if len(sys.argv) > 1 else 0
+    torch.manual_seed(seed)
+    student, teacher, stats = run(seed=seed)
+    plot_output(student, teacher)
 
 
 if __name__ == "__main__":

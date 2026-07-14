@@ -25,7 +25,9 @@ from digital_net import train_teacher, target, N, HIDDEN
 from thermo_student import ThermoStudent, idealized_trajectory, TF, DT
 
 
-def student_targets(teacher, z, act_scale=0.5):
+def student_targets(teacher, z, act_scale=1.0):
+    # NOTE: default must match run()'s act_scale default -- plot scripts and
+    # calibration call this bare and must see the same targets training used.
     """Target activations A (B, N): teacher hidden activations + ground truth.
 
     The output node's target is cos(2 pi z) itself, not the teacher's output
@@ -45,6 +47,7 @@ def student_targets(teacher, z, act_scale=0.5):
 
 
 def train_student(A, z, rounds=30, rel_tol=1e-5, tf=TF, dt=DT,
+                  guide_beta=None, guide_M=4,
                   seed=0, device="cpu", verbose=True):
     """Fit a ThermoStudent to reproduce the idealized trajectories for (A, z).
 
@@ -53,11 +56,22 @@ def train_student(A, z, rounds=30, rel_tol=1e-5, tf=TF, dt=DT,
     rounds where first-order Adam stalls for thousands of epochs.  Rounds stop
     early once the relative per-round improvement drops below rel_tol.
 
+    guide_beta=<float> switches to NOISY guide trajectories (guide_M
+    realizations per input at temperature 1/guide_beta); the OM loss then has
+    a statistical floor of N/2, so pass rel_tol=0 to disable early stopping.
+
     A : (B, N) target activations; z : (B,) inputs.  Returns (student, history).
     """
     A = A.to(device)
     z = z.to(device)
-    traj = idealized_trajectory(A, tf=tf, dt=dt)      # (K+1, B, N), no grad
+    if guide_beta is None:
+        traj = idealized_trajectory(A, tf=tf, dt=dt)  # (K+1, B, N), no grad
+    else:
+        traj = idealized_trajectory(A, tf=tf, dt=dt, beta=guide_beta,
+                                    M=guide_M, seed=seed + 100)
+        T_, B_, M_, N_ = traj.shape
+        traj = traj.reshape(T_, B_ * M_, N_)          # fold realizations
+        z = z.repeat_interleave(M_)                   # matching inputs
     student = ThermoStudent(seed=seed).to(device)
     opt = torch.optim.LBFGS(student.parameters(), max_iter=40, history_size=30,
                             line_search_fn="strong_wolfe")
@@ -105,12 +119,16 @@ def evaluate(student, K=101, M=256, seed=0, device="cpu"):
 
 
 def run(teacher_epochs=3000, K=128, student_rounds=30, act_scale=1.0,
+        teacher_wd=0.0, teacher_act_reg=0.0, teacher_sat_reg=0.0,
+        teacher_dropout=0.0,
         eval_M=256, device=None, save_path=None, seed=0):
     """Full teacher -> student pipeline. Returns (student, teacher, stats)."""
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
     t0 = time.time()
     print(f"[1/3] training digital teacher ...  (device: {device})")
     teacher = train_teacher(epochs=teacher_epochs, K=max(K, 256),
+                            weight_decay=teacher_wd, act_reg=teacher_act_reg,
+                            sat_reg=teacher_sat_reg, dropout=teacher_dropout,
                             seed=seed, device=device)
     z = torch.linspace(0.0, 1.0, K, device=device)
     A = student_targets(teacher, z, act_scale=act_scale)
@@ -123,8 +141,10 @@ def run(teacher_epochs=3000, K=128, student_rounds=30, act_scale=1.0,
                                      seed=seed, device=device)
     t_student = time.time() - t1
 
-    print("[3/3] fitting readout scale and evaluating stochastic student ...")
+    print("[3/3] fitting readout scale (post-training) and evaluating ...")
     t2 = time.time()
+    # c is fitted AFTER training, from a stochastic run of the frozen student;
+    # it never enters the OM training itself.
     c = student.fit_readout(z, target(z), M=eval_M, seed=seed + 1)
     ev = evaluate(student, M=eval_M, seed=seed, device=device)
     t_eval = time.time() - t2

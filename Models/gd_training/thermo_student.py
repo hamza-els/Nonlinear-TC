@@ -4,10 +4,11 @@ Implements the "student" of Whitelam, arXiv:2509.15324 (Sec. II), specialized
 to the cosine-regression architecture:
 
     - HIDDEN = 32 hidden neurons, all-to-all coupled among themselves (Jhh),
-    - the input z couples to EVERY neuron (hidden and output) via a trainable
-      W_i -- the paper (Sec. III) likewise has trainable couplings between the
-      input data and both the hidden and the output nodes; the direct
-      z -> output coupling gives the output a first-order drive from t = 0,
+    - the input enters as N_IN frozen feature channels phi(z) = (z, z^2, z^3),
+      each coupled to EVERY neuron (hidden and output) via trainable W_k,i --
+      the paper (Sec. III) likewise couples its input data (784 pixels) to
+      both the hidden and the output nodes; multiple channels give the
+      computer a rank-N_IN, nonlinear-in-z field family from t = 0,
     - each hidden neuron couples to the single output neuron via a learned
       scalar Jho_i,
     - the prediction is the output neuron's mean activation <x_out(tf)>,
@@ -45,7 +46,7 @@ gradients of Eqs. 6-10.
 import torch
 import torch.nn as nn
 
-from digital_net import N, HIDDEN, N_OUT
+from digital_net import N, HIDDEN, N_OUT, N_IN, features
 
 # --- Physics constants -----------------------------------------------------
 # "Cold" units: J2 = J4 = 1 with kT = 0.1 (beta = 10, matching ga_training).
@@ -58,10 +59,10 @@ J2, J4 = 1.0, 1.0
 BETA = 10.0
 KT = 1.0 / BETA
 MU = 1.0
-# Observation time (units of 1/mu). The paper uses tf = 1/5, but its inputs
-# couple directly to the output nodes; here z reaches the output only through
-# the hidden layer, and at tf = 0.2 the output never activates (tested:
-# predictions ~ 0). tf = 1.0 (~2 relaxation times) works markedly better.
+# Observation time (units of 1/mu). The paper's tf = 1/5 fails here even in
+# the modern setup (tested 2026-07-13: all lottery seeds ~0.66-0.71 RMSE, the
+# tf=1 star seed included): z reaches the output through the hidden layer, so
+# the output needs >~ 2 relaxation times to receive and act on information.
 TF = 1.0
 DT = 1e-3
 
@@ -76,28 +77,50 @@ def _intrinsic_grad(x):
 
 
 @torch.no_grad()
-def idealized_trajectory(A, tf=TF, dt=DT, mu=MU):
+def idealized_trajectory(A, tf=TF, dt=DT, mu=MU, beta=None, M=1, seed=None):
     """Build "teacher #2": the idealized trajectory whose activations relax to A.
 
-    Uses a NONINTERACTING (Jij = 0), zero-temperature computer whose guide
-    biases are chosen so the fixed point equals A_i exactly.  The steady state
-    of x_dot = -mu(2 J2 x + 4 J4 x^3 - b0) satisfies 2 J2 x + 4 J4 x^3 = b0, so
+    Uses a NONINTERACTING (Jij = 0) computer whose guide biases are chosen so
+    the T=0 fixed point equals A_i exactly.  The steady state of
+    x_dot = -mu(2 J2 x + 4 J4 x^3 - b0) satisfies 2 J2 x + 4 J4 x^3 = b0, so
     setting  b0_i = 2 J2 A_i + 4 J4 A_i^3  makes x_i relax to exactly A_i.
     (The paper sets b0 merely proportional to A and accepts the nonlinearity;
     the exact inverse is a small improvement that helps the regression task.)
 
-    A    : (B, N) target activations, one row per input.
-    Returns traj of shape (n_steps + 1, B, N), starting from x = 0.
+    beta=None (default): zero-temperature, deterministic guide -- returns
+    (n_steps + 1, B, N), starting from x = 0.
+
+    beta=<float>, M=<int>: NOISY guide -- the same biased noninteracting
+    computer simulated at temperature 1/beta, M independent realizations per
+    input.  Returns (n_steps + 1, B, M, N).  Training on noisy guides breaks
+    the OM null-space degeneracy (noise explores state space; see
+    test_om_recovery check 4) and bakes the <x^3> noise-rectification of the
+    finite-T mean dynamics into the fit.
+
+    A : (B, N) target activations, one row per input.
     """
     b0 = 2.0 * J2 * A + 4.0 * J4 * A ** 3          # (B, N)
     n_steps = int(round(tf / dt))
-    x = torch.zeros_like(A)
+    if beta is None:
+        x = torch.zeros_like(A)
+        noise_amp = 0.0
+        gen = None
+    else:
+        b0 = b0[:, None, :]                        # (B, 1, N) broadcast over M
+        x = A.new_zeros(A.shape[0], M, A.shape[1])
+        noise_amp = (2.0 * mu * (1.0 / beta) * dt) ** 0.5
+        gen = None
+        if seed is not None:
+            gen = torch.Generator(device=A.device).manual_seed(seed)
     traj = [x]
     for _ in range(n_steps):
-        drift = -(_intrinsic_grad(x) - b0)         # noninteracting, T = 0
+        drift = -(_intrinsic_grad(x) - b0)         # noninteracting
         x = x + mu * drift * dt
+        if noise_amp:
+            x = x + noise_amp * torch.randn(x.shape, generator=gen,
+                                            dtype=x.dtype, device=x.device)
         traj.append(x)
-    return torch.stack(traj, dim=0)                # (K+1, B, N)
+    return torch.stack(traj, dim=0)
 
 
 class ThermoStudent(nn.Module):
@@ -120,7 +143,9 @@ class ThermoStudent(nn.Module):
             return torch.zeros(*shape)
 
         self.b = nn.Parameter(init(N))              # biases, all nodes
-        self.W = nn.Parameter(init(N))              # z -> node couplings (all)
+        # Input couplings: one row per frozen input channel phi_k(z), one
+        # column per node (hidden and output), as in the paper's pixel bonds.
+        self.W = nn.Parameter(init(N_IN, N))
         self.Jhh_raw = nn.Parameter(init(HIDDEN, HIDDEN))  # hidden <-> hidden
         self.Jho = nn.Parameter(init(HIDDEN))       # hidden <-> output scalars
         # Post-hoc readout scale c: y = c * <x_out(tf)>.  Not a thermodynamic
@@ -138,8 +163,8 @@ class ThermoStudent(nn.Module):
         return Jc
 
     def input_field(self, z):
-        """(B, N) external field W_i z on every node (hidden and output)."""
-        return z.reshape(-1, 1) * self.W.reshape(1, N)
+        """(B, N) external field sum_k W_k,i phi_k(z) on every node."""
+        return features(z.reshape(-1)) @ self.W
 
     def dVdx(self, x, z):
         """dV/dx_i (Eq. 10) for state x (..., B, N) and input z (B,)."""
