@@ -23,18 +23,18 @@ DEPTH = 2                      # number of hidden layers
 HIDDEN = WIDTH * DEPTH         # 32 hidden neurons total
 N_OUT = 1                      # single scalar output (the cosine prediction)
 N = HIDDEN + N_OUT             # total non-input degrees of freedom
-N_IN = 3                       # input channels: features(z) = (z, z^2, z^3)
+N_IN = 6                       # input channels: features(z) = (z, ..., z^6)
 
 
 def features(z):
-    """Input features phi(z) = (z, z^2, z^3), shape (B, N_IN).
+    """Input features phi(z) = (z, z^2, ..., z^N_IN), shape (B, N_IN).
 
     Multiple frozen input channels raise the rank of the field the student
     can apply (sum_k W_k phi_k(z) instead of W z), letting it exert
     nonlinear-in-z, non-monotone forces from t = 0 -- the scalar-input analog
     of the paper's 784 pixel channels.  Both teacher and student see them.
     """
-    return torch.stack([z, z ** 2, z ** 3], dim=-1)
+    return torch.stack([z ** k for k in range(1, N_IN + 1)], dim=-1)
 
 
 def target(z):

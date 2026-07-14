@@ -34,17 +34,21 @@ OUT_PATH = "../../Graphs/gd_graphs/fig_trajectories.png"
 
 def plot_trajectories(student, teacher, out_path=OUT_PATH,
                       suptitle="student node trajectories vs idealized "
-                               "teacher trajectories", gains=None):
+                               "teacher trajectories", gains=None,
+                      target_fn=None):
     """Draw the trajectory-comparison figure for a trained (student, teacher).
 
     gains: optional per-node (N,) multipliers applied to the targets (for
     students trained on gain-calibrated targets).
+    target_fn: optional callable z -> (B, N) targets, replacing
+    student_targets entirely (for pointwise-corrected targets).
     Returns (mean_node_rms, output_node_rms)."""
     device = student.b.device
+    get_A = target_fn or (lambda zz: student_targets(teacher, zz))
 
     # --- trajectories at three representative inputs ----------------------
     z3 = torch.tensor([0.25, 0.5, 0.75], device=device)
-    A3 = student_targets(teacher, z3)                       # (3, N)
+    A3 = get_A(z3)                                          # (3, N)
     if gains is not None:
         A3 = A3 * gains
     ideal3 = idealized_trajectory(A3)                       # (K+1, 3, N)
@@ -63,7 +67,7 @@ def plot_trajectories(student, teacher, out_path=OUT_PATH,
 
     # --- per-node RMS deviation over a z-grid -----------------------------
     zg = torch.linspace(0.0, 1.0, 21, device=device)
-    Ag = student_targets(teacher, zg)
+    Ag = get_A(zg)
     if gains is not None:
         Ag = Ag * gains
     idealg = idealized_trajectory(Ag)
