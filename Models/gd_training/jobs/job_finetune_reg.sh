@@ -16,12 +16,9 @@ module load ml/pytorch
 # (fitness = bias only, var_weight = 0).
 #
 # Submit from Models/gd_training:   sbatch jobs/job_finetune_reg.sh
-# Args: seed=0, generations=200, var_weight=0.  Protocol per the script's
-# constants: P=50, N_ELITE=5, K=256, M_FIT=1000, CRN=False (original-GA-style
-# independent noise), tf/beta inherited from thermo_student.py (0.40 / 10).
-# Outputs: runs/run_ga_finetune_seed0_g200_vw0_M1000.npz + figure + this log.
-# NOTE: measured ~200 s/gen at P=32/K=128 locally; at P=50/K=256 expect
-# roughly 3x that per generation -- trim generations if walltime is capped.
+# Args: seed=0, generations=200, var_weight=0.  Protocol (P, K, M_FIT, CRN,
+# ...) comes from the script's constants and is printed at the top of the log
+# and encoded in the output filename tag.
 
 cd "$SLURM_SUBMIT_DIR"
 mkdir -p runs logs

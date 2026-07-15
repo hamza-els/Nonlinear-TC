@@ -44,7 +44,7 @@ VAR_WEIGHT = float(sys.argv[3]) if len(sys.argv) > 3 else 0.0
 
 P = 50          # population size
 N_ELITE = 5
-MUT = 1e-2      # base mutation scale, divided by sqrt(fan-in) per tensor
+MUT = 2e-2      # base mutation scale, divided by sqrt(fan-in) per tensor
 K = 256         # z-grid for fitness
 M_FIT = 1000    # samples per (candidate, z) during fitness evaluation
 # Common random numbers: share one noise draw across all P candidates per
@@ -52,11 +52,11 @@ M_FIT = 1000    # samples per (candidate, z) during fitness evaluation
 # fitness noise floor Var/M_FIT is comparable to the bias differences being
 # selected on (e.g. M_FIT = 64); at M_FIT ~ 1000 the floor is far below the
 # signal and independent noise (CRN = False) matches the original GA protocol.
-CRN = False
+CRN = True
 # Samples are simulated in chunks of M_CHUNK to bound GPU memory (the state
 # tensor is P x K x M_CHUNK x N); fitness statistics are accumulated exactly
 # across chunks, so results are independent of the chunk size.
-M_CHUNK = 250
+M_CHUNK = 1000
 
 FANIN = {"b": 1.0, "W": float(N_IN), "Jhh": float(HIDDEN),
          "Jho": (HIDDEN + N_OUT) / 2.0, "Joo": float(N_OUT)}
@@ -125,6 +125,10 @@ def population_fitness(pop, phi, y0, gen_seed, device):
 def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     t0 = time.time()
+    print(f"config: seed={SEED} gens={GENS} var_weight={VAR_WEIGHT:g} | "
+          f"P={P} elites={N_ELITE} K={K} M_FIT={M_FIT} M_CHUNK={M_CHUNK} "
+          f"CRN={CRN} MUT={MUT:g} | tf={TF:g} beta={BETA:g} dt={DT:g}",
+          flush=True)
 
     # --- GD warm start -------------------------------------------------------
     torch.manual_seed(SEED)
@@ -159,6 +163,7 @@ def main():
     pop = stack(cands)
 
     history = []
+    t_last, n_last = time.time(), 0
     for n in range(GENS):
         fit, bias, var = population_fitness(pop, phi, y0, SEED + 2000 + n,
                                             device)
@@ -166,9 +171,12 @@ def main():
         best = order[0].item()
         history.append((fit[best].item(), bias[best].item(), var[best].item()))
         if n % 10 == 0 or n == GENS - 1:
+            now = time.time()
+            spg = (now - t_last) / max(1, n - n_last)
+            t_last, n_last = now, n
             print(f"  gen {n:4d}  fitness {history[-1][0]:.3e}  "
                   f"bias {history[-1][1]:.3e}  var {history[-1][2]:.3f}  "
-                  f"({time.time()-t0:.0f}s)", flush=True)
+                  f"{spg:7.2f} s/gen  ({now - t0:.0f}s total)", flush=True)
         elites = [{k: pop[k][i].clone() for k in pop}
                   for i in order[:N_ELITE].tolist()]
         cands = [dict(e) for e in elites] + \
@@ -193,11 +201,14 @@ def main():
 
     runs_dir = os.path.join(_GD_ROOT, "runs")
     os.makedirs(runs_dir, exist_ok=True)
-    tag = f"seed{SEED}_g{GENS}_vw{VAR_WEIGHT:g}_M{M_FIT}"
+    tag = (f"seed{SEED}_g{GENS}_vw{VAR_WEIGHT:g}_M{M_FIT}_"
+           f"{'crn' if CRN else 'nocrn'}")
     np.savez(os.path.join(runs_dir, f"run_ga_finetune_{tag}.npz"),
              **{f"p_{k}": v.cpu().numpy() for k, v in champ.items()},
              history=np.asarray(history), seed=SEED, gens=GENS,
-             var_weight=VAR_WEIGHT, tf=TF, beta=BETA)
+             var_weight=VAR_WEIGHT, tf=TF, beta=BETA,
+             crn=CRN, P=P, n_elite=N_ELITE, K=K, m_fit=M_FIT,
+             m_chunk=M_CHUNK, mut=MUT)
     plot_output(tuned, teacher,
                 out_path=f"{GDIR}/fig_teacher_gafinetune_{tag}.png",
                 suptitle=f"N: GA fine-tune of GD solution, seed {SEED}, "
