@@ -47,6 +47,16 @@ N_ELITE = 5
 MUT = 1e-2      # base mutation scale, divided by sqrt(fan-in) per tensor
 K = 256         # z-grid for fitness
 M_FIT = 1000    # samples per (candidate, z) during fitness evaluation
+# Common random numbers: share one noise draw across all P candidates per
+# step, so selection compares parameters rather than luck.  Worth it when the
+# fitness noise floor Var/M_FIT is comparable to the bias differences being
+# selected on (e.g. M_FIT = 64); at M_FIT ~ 1000 the floor is far below the
+# signal and independent noise (CRN = False) matches the original GA protocol.
+CRN = False
+# Samples are simulated in chunks of M_CHUNK to bound GPU memory (the state
+# tensor is P x K x M_CHUNK x N); fitness statistics are accumulated exactly
+# across chunks, so results are independent of the chunk size.
+M_CHUNK = 250
 
 FANIN = {"b": 1.0, "W": float(N_IN), "Jhh": float(HIDDEN),
          "Jho": (HIDDEN + N_OUT) / 2.0, "Joo": float(N_OUT)}
@@ -81,22 +91,34 @@ def population_fitness(pop, phi, y0, gen_seed, device):
     n_steps = int(round(TF / DT))
     gen = torch.Generator(device=device).manual_seed(gen_seed)
 
-    x = pop["b"].new_zeros(Pn, K, M_FIT, N)
-    for _ in range(n_steps):
-        dV = (2.0 * x + 4.0 * x ** 3 - b
-              + torch.einsum("pkmn,pnj->pkmj", x, Jc) + ext)
-        # common random numbers: one draw shared by every candidate
-        eta = torch.randn((K, M_FIT, N), generator=gen, device=device)
-        x = x - MU * dV * DT + noise_amp * eta
+    # accumulate exact first/second moments of the output nodes over m-chunks
+    S1 = pop["b"].new_zeros(Pn, K, N_OUT)                   # sum of xout
+    S2 = pop["b"].new_zeros(Pn, K, N_OUT, N_OUT)            # sum of outer prods
+    m_done = 0
+    while m_done < M_FIT:
+        mc = min(M_CHUNK, M_FIT - m_done)
+        x = pop["b"].new_zeros(Pn, K, mc, N)
+        for _ in range(n_steps):
+            dV = (2.0 * x + 4.0 * x ** 3 - b
+                  + torch.einsum("pkmn,pnj->pkmj", x, Jc) + ext)
+            # CRN=True: one draw shared by every candidate (broadcast over P);
+            # CRN=False: independent noise per candidate, as in the original GA.
+            shape = (K, mc, N) if CRN else (Pn, K, mc, N)
+            eta = torch.randn(shape, generator=gen, device=device)
+            x = x - MU * dV * DT + noise_amp * eta
+        xout = x[..., HIDDEN:]                              # (P, K, mc, 8)
+        S1 += xout.sum(dim=2)
+        S2 += torch.einsum("pkmo,pkmq->pkoq", xout, xout)
+        m_done += mc
 
-    xout = x[..., HIDDEN:]                                  # (P, K, M, 8)
-    Xmean = xout.mean(dim=2)                                # (P, K, 8)
+    Xmean = S1 / M_FIT                                      # (P, K, 8)
     B = y0.reshape(1, K, 1).expand(Pn, K, 1)
     w = torch.linalg.lstsq(Xmean, B).solution               # (P, 8, 1)
     pred = (Xmean @ w).squeeze(-1)                          # (P, K)
     bias = ((pred - y0) ** 2).mean(dim=1)                   # (P,)
-    Ysamp = (xout @ w[:, None]).squeeze(-1)                 # (P, K, M)
-    var = Ysamp.var(dim=2).mean(dim=1)                      # (P,)
+    Cov = S2 / M_FIT - Xmean[..., :, None] * Xmean[..., None, :]
+    wv = w.squeeze(-1)                                      # (P, 8)
+    var = torch.einsum("pkoq,po,pq->pk", Cov, wv, wv).mean(dim=1)
     return bias + VAR_WEIGHT * var, bias, var
 
 

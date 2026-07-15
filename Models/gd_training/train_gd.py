@@ -90,7 +90,7 @@ def train_student(A, z, rounds=30, rel_tol=1e-5, tf=TF, dt=DT,
     return student, history
 
 
-def evaluate(student, K=101, M=256, seed=0, device="cpu"):
+def evaluate(student, K=101, M=256, seed=0, device="cpu", tf=TF):
     """Evaluate the stochastic student on a z-grid with one rollout.
 
     Returns a dict of stats: rmse (of the M-sample-averaged prediction),
@@ -99,7 +99,7 @@ def evaluate(student, K=101, M=256, seed=0, device="cpu"):
     """
     z = torch.linspace(0.0, 1.0, K, device=device)
     with torch.no_grad():
-        Y = student.sample_outputs(z, M=M, seed=seed)     # (K, M)
+        Y = student.sample_outputs(z, M=M, seed=seed, tf=tf)  # (K, M)
     pred = Y.mean(dim=1)
     y0 = target(z)
     return {
@@ -114,7 +114,7 @@ def evaluate(student, K=101, M=256, seed=0, device="cpu"):
 
 def run(teacher_epochs=3000, K=128, student_rounds=30, act_scale=1.0,
         teacher_wd=0.0, teacher_act_reg=0.0, teacher_sat_reg=0.0,
-        teacher_dropout=0.0,
+        teacher_dropout=0.0, tf=TF,
         eval_M=256, device=None, save_path=None, seed=0):
     """Full teacher -> student pipeline. Returns (student, teacher, stats)."""
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
@@ -132,15 +132,15 @@ def run(teacher_epochs=3000, K=128, student_rounds=30, act_scale=1.0,
     print("[2/3] training thermodynamic student by gradient descent ...")
     t1 = time.time()
     student, history = train_student(A, z, rounds=student_rounds,
-                                     seed=seed, device=device)
+                                     tf=tf, seed=seed, device=device)
     t_student = time.time() - t1
 
     print("[3/3] fitting readout scale (post-training) and evaluating ...")
     t2 = time.time()
     # c is fitted AFTER training, from a stochastic run of the frozen student;
     # it never enters the OM training itself.
-    c = student.fit_readout(z, target(z), M=eval_M, seed=seed + 1)
-    ev = evaluate(student, M=eval_M, seed=seed, device=device)
+    c = student.fit_readout(z, target(z), M=eval_M, seed=seed + 1, tf=tf)
+    ev = evaluate(student, M=eval_M, seed=seed, device=device, tf=tf)
     t_eval = time.time() - t2
 
     n_params = sum(p.numel() for p in student.parameters())
