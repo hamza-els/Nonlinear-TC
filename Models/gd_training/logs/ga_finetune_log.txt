@@ -1,0 +1,81 @@
+[1/3] training digital teacher ...  (device: cuda)
+  teacher epoch     0  mse 5.081e-01
+  teacher epoch   300  mse 7.897e-05
+  teacher epoch   600  mse 5.751e-05
+  teacher epoch   900  mse 3.105e-05
+  teacher epoch  1200  mse 1.716e-05
+  teacher epoch  1500  mse 1.307e-05
+  teacher epoch  1800  mse 1.025e-05
+  teacher epoch  2100  mse 1.993e-05
+  teacher epoch  2400  mse 1.464e-03
+  teacher epoch  2700  mse 6.302e-06
+  teacher epoch  2999  mse 6.252e-06
+[2/3] training thermodynamic student by gradient descent ...
+  student LBFGS round 0  OM loss 8.2749e-01
+  student LBFGS round 1  OM loss 2.4353e-02
+  student LBFGS round 2  OM loss 1.5199e-02
+  student LBFGS round 3  OM loss 1.0644e-02
+  student LBFGS round 4  OM loss 9.8190e-03
+  student LBFGS round 5  OM loss 9.0397e-03
+  student LBFGS round 6  OM loss 8.5413e-03
+  student LBFGS round 7  OM loss 8.0087e-03
+  student LBFGS round 8  OM loss 7.3895e-03
+  student LBFGS round 9  OM loss 6.6595e-03
+  student LBFGS round 10  OM loss 6.0578e-03
+  student LBFGS round 11  OM loss 5.5152e-03
+  student LBFGS round 12  OM loss 5.0414e-03
+  student LBFGS round 13  OM loss 4.7698e-03
+  student LBFGS round 14  OM loss 4.6104e-03
+  student LBFGS round 15  OM loss 4.4713e-03
+  student LBFGS round 16  OM loss 4.4101e-03
+  student LBFGS round 17  OM loss 4.3776e-03
+  student LBFGS round 18  OM loss 4.3495e-03
+  student LBFGS round 19  OM loss 4.3264e-03
+  student LBFGS round 20  OM loss 4.3057e-03
+  student LBFGS round 21  OM loss 4.2805e-03
+  student LBFGS round 22  OM loss 4.2572e-03
+  student LBFGS round 23  OM loss 4.2276e-03
+  student LBFGS round 24  OM loss 4.1903e-03
+  student LBFGS round 25  OM loss 4.1541e-03
+  student LBFGS round 26  OM loss 4.1283e-03
+  student LBFGS round 27  OM loss 4.1138e-03
+  student LBFGS round 28  OM loss 4.0997e-03
+  student LBFGS round 29  OM loss 4.0851e-03
+[3/3] fitting readout scale (post-training) and evaluating ...
+
+--- run summary --------------------------------------------
+teacher fit mse     6.898e-06            (4.8s)
+OM loss             8.275e-01 -> 4.085e-03  (30 LBFGS rounds, 12.8s)
+readout scale c     0.7775
+RMSE vs cos         1.326e-02            (M=256, 0.5s)
+bias^2              1.758e-04   mean_z (E[y]-y0)^2
+Var[y]              2.111e-02   mean_z per-sample variance
+pred range          [-0.996, +1.048]   (target [-1, +1])
+trainable params    5176
+------------------------------------------------------------
+GD baseline (seed 0): rmse 0.0133  bias2 1.76e-04  var 0.021
+  gen    0  fitness 4.025e-04  bias 4.025e-04  var 0.015  (22s)
+  gen   10  fitness 3.783e-04  bias 3.783e-04  var 0.016  (58s)
+  gen   20  fitness 2.736e-04  bias 2.736e-04  var 0.014  (93s)
+  gen   30  fitness 2.956e-04  bias 2.956e-04  var 0.014  (129s)
+  gen   40  fitness 2.661e-04  bias 2.661e-04  var 0.014  (165s)
+  gen   50  fitness 2.845e-04  bias 2.845e-04  var 0.013  (201s)
+  gen   60  fitness 2.539e-04  bias 2.539e-04  var 0.014  (237s)
+  gen   70  fitness 2.501e-04  bias 2.501e-04  var 0.013  (273s)
+  gen   80  fitness 2.890e-04  bias 2.890e-04  var 0.012  (308s)
+  gen   90  fitness 2.216e-04  bias 2.216e-04  var 0.013  (344s)
+  gen  100  fitness 2.097e-04  bias 2.097e-04  var 0.012  (380s)
+  gen  110  fitness 2.264e-04  bias 2.264e-04  var 0.013  (416s)
+  gen  120  fitness 2.570e-04  bias 2.570e-04  var 0.013  (452s)
+  gen  130  fitness 2.176e-04  bias 2.176e-04  var 0.013  (487s)
+  gen  140  fitness 2.009e-04  bias 2.009e-04  var 0.012  (523s)
+  gen  150  fitness 2.319e-04  bias 2.319e-04  var 0.011  (559s)
+  gen  160  fitness 2.250e-04  bias 2.250e-04  var 0.011  (595s)
+  gen  170  fitness 1.749e-04  bias 1.749e-04  var 0.011  (631s)
+  gen  180  fitness 2.404e-04  bias 2.404e-04  var 0.011  (667s)
+  gen  190  fitness 2.606e-04  bias 2.606e-04  var 0.012  (702s)
+  gen  199  fitness 1.985e-04  bias 1.985e-04  var 0.011  (735s)
+
+GA-finetuned:  rmse 0.0081  bias2 6.63e-05  var 0.011
+GD baseline:   rmse 0.0133  bias2 1.76e-04  var 0.021
+saved ../../Graphs/gd_graphs/fig_teacher_gafinetune.png

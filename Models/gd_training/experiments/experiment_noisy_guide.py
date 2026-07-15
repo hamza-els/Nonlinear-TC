@@ -8,20 +8,25 @@ breaking the OM null-space degeneracy, and the fit absorbs the <x^3>
 rectification of finite-T mean dynamics.  The OM loss floor becomes ~N/2.
 
 Usage:
-    python experiment_noisy_guide.py [seed]
+    python experiments/experiment_noisy_guide.py [seed]
 """
 
+import os
 import sys
+
+# core modules (digital_net, thermo_student, train_gd) live one level up
+_GD_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _GD_ROOT)
 
 import torch
 
 from digital_net import target, N
 from thermo_student import BETA
 from train_gd import run, student_targets, train_student, evaluate
-from plot_output_samples import plot_output
-from plot_trajectories_gd import plot_trajectories
+from plots.plot_output_samples import plot_output
+from plots.plot_trajectories_gd import plot_trajectories
 
-GDIR = "../../Graphs/gd_graphs"
+GDIR = os.path.join(_GD_ROOT, "..", "..", "Graphs", "gd_graphs")
 SEED = int(sys.argv[1]) if len(sys.argv) > 1 else 2
 GUIDE_M = 4
 

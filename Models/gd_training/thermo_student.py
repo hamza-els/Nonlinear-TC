@@ -59,11 +59,14 @@ J2, J4 = 1.0, 1.0
 BETA = 10.0
 KT = 1.0 / BETA
 MU = 1.0
-# Observation time (units of 1/mu). The paper's tf = 1/5 fails here even in
-# the modern setup (tested 2026-07-13: all lottery seeds ~0.66-0.71 RMSE, the
-# tf=1 star seed included): z reaches the output through the hidden layer, so
-# the output needs >~ 2 relaxation times to receive and act on information.
-TF = 1.0
+# Observation time (units of 1/mu). tf = 0.40 is the location of the
+# secondary phi(tf) valley of the tf=1-trained champion (fine-scanned
+# 2026-07-14: its transient crosses the answer at 0.40 with phi ~ 9e-4)
+# -- testing whether training AT that crossing time works outright.
+# History: tf = 1.0 was the long-standing default (~2 relaxation times);
+# the paper's tf = 0.2 fails for hidden-mediated scalar-input architectures
+# but became near-viable with polynomial input channels.
+TF = 0.40
 DT = 1e-3
 
 # The output neuron is the last degree of freedom; its activation is the

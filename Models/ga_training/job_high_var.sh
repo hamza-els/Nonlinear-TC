@@ -8,7 +8,7 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:V100:1
 #SBATCH --time=11:00:00
-#SBATCH --output=train-%j.out
+#SBATCH --output=logs/train-%j.out
 
 module load ml/pytorch
 

@@ -15,19 +15,24 @@ Each experiment saves an output figure AND a trajectory figure for its best
 seed.  An optional filename suffix keeps runs at different settings apart:
 
 Usage:
-    python experiment_teacher_opt.py          # fig_teacher_<name>.png
-    python experiment_teacher_opt.py _tf02    # fig_teacher_<name>_tf02.png
+    python experiments/experiment_teacher_opt.py          # fig_teacher_<name>.png
+    python experiments/experiment_teacher_opt.py _tf02    # fig_teacher_<name>_tf02.png
 """
 
+import os
 import sys
+
+# core modules (digital_net, thermo_student, train_gd) live one level up
+_GD_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _GD_ROOT)
 
 import torch
 
 from train_gd import run
-from plot_output_samples import plot_output
-from plot_trajectories_gd import plot_trajectories
+from plots.plot_output_samples import plot_output
+from plots.plot_trajectories_gd import plot_trajectories
 
-GDIR = "../../Graphs/gd_graphs"
+GDIR = os.path.join(_GD_ROOT, "..", "..", "Graphs", "gd_graphs")
 SUFFIX = sys.argv[1] if len(sys.argv) > 1 else ""
 N_LOTTERY = 10
 REG_SEEDS = (0, 1, 2)

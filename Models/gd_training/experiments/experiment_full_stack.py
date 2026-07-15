@@ -9,19 +9,26 @@ Pipeline (everything that has individually proven out, composed):
   4. Final training: calibrated targets + noisy guides.  Figures + summary.
 
 Usage:
-    python experiment_full_stack.py
+    python experiments/experiment_full_stack.py
 """
+
+import os
+import sys
+
+# core modules (digital_net, thermo_student, train_gd) live one level up
+_GD_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _GD_ROOT)
 
 import torch
 
 from digital_net import target, N
 from thermo_student import BETA, idealized_trajectory
 from train_gd import run, student_targets, train_student, evaluate
-from experiment_teacher_opt import sweep
-from plot_output_samples import plot_output
-from plot_trajectories_gd import plot_trajectories
+from experiments.experiment_teacher_opt import sweep
+from plots.plot_output_samples import plot_output
+from plots.plot_trajectories_gd import plot_trajectories
 
-GDIR = "../../Graphs/gd_graphs"
+GDIR = os.path.join(_GD_ROOT, "..", "..", "Graphs", "gd_graphs")
 GUIDE_M = 4
 
 

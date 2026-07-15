@@ -13,11 +13,15 @@ tab:green thermo output; tab:blue for the digital teacher) so GA and GD
 figures are directly comparable.
 
 Usage:
-    python plot_output_samples.py    # -> ../../Graphs/gd_graphs/fig_output_samples.png
+    python plots/plot_output_samples.py    # -> Graphs/gd_graphs/fig_output_samples.png
 """
 
 import os
 import sys
+
+# core modules (digital_net, thermo_student, train_gd) live one level up
+_GD_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _GD_ROOT)
 
 import numpy as np
 import matplotlib
@@ -29,7 +33,8 @@ import torch
 from digital_net import target
 from train_gd import run
 
-OUT_PATH = "../../Graphs/gd_graphs/fig_output_samples.png"
+OUT_PATH = os.path.join(_GD_ROOT, "..", "..", "Graphs", "gd_graphs",
+                        "fig_output_samples.png")
 
 
 def plot_output(student, teacher, out_path=OUT_PATH,

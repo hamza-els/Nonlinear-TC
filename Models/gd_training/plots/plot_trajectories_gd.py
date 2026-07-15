@@ -12,11 +12,15 @@ Panel 4: per-node closeness over a z-grid -- the RMS deviation
 sqrt(mean_{t,z} (<x_i(t)> - x_ideal_i(t))^2) for each of the 33 nodes.
 
 Usage:
-    python plot_trajectories_gd.py   # -> ../../Graphs/gd_graphs/fig_trajectories.png
+    python plots/plot_trajectories_gd.py   # -> Graphs/gd_graphs/fig_trajectories.png
 """
 
 import os
 import sys
+
+# core modules (digital_net, thermo_student, train_gd) live one level up
+_GD_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _GD_ROOT)
 
 import numpy as np
 import matplotlib
@@ -29,7 +33,8 @@ from digital_net import HIDDEN, N, N_OUT
 from thermo_student import idealized_trajectory, TF, DT
 from train_gd import run, student_targets
 
-OUT_PATH = "../../Graphs/gd_graphs/fig_trajectories.png"
+OUT_PATH = os.path.join(_GD_ROOT, "..", "..", "Graphs", "gd_graphs",
+                        "fig_trajectories.png")
 
 
 def plot_trajectories(student, teacher, out_path=OUT_PATH,
