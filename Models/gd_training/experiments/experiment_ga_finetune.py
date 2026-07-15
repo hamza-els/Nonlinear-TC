@@ -57,7 +57,7 @@ CRN = True
 # Samples are simulated in chunks of M_CHUNK to bound GPU memory (the state
 # tensor is P x K x M_CHUNK x N); fitness statistics are accumulated exactly
 # across chunks, so results are independent of the chunk size.
-M_CHUNK = 1000
+M_CHUNK = 500
 
 FANIN = {"b": 1.0, "W": float(N_IN), "Jhh": float(HIDDEN),
          "Jho": (HIDDEN + N_OUT) / 2.0, "Joo": float(N_OUT)}
