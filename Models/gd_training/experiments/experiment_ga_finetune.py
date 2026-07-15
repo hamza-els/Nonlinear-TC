@@ -193,12 +193,13 @@ def main():
 
     runs_dir = os.path.join(_GD_ROOT, "runs")
     os.makedirs(runs_dir, exist_ok=True)
-    np.savez(os.path.join(runs_dir, "run_ga_finetune.npz"),
+    tag = f"seed{SEED}_g{GENS}_vw{VAR_WEIGHT:g}_M{M_FIT}"
+    np.savez(os.path.join(runs_dir, f"run_ga_finetune_{tag}.npz"),
              **{f"p_{k}": v.cpu().numpy() for k, v in champ.items()},
              history=np.asarray(history), seed=SEED, gens=GENS,
              var_weight=VAR_WEIGHT, tf=TF, beta=BETA)
     plot_output(tuned, teacher,
-                out_path=f"{GDIR}/fig_teacher_gafinetune.png",
+                out_path=f"{GDIR}/fig_teacher_gafinetune_{tag}.png",
                 suptitle=f"N: GA fine-tune of GD solution, seed {SEED}, "
                          f"{GENS} gens, var_weight={VAR_WEIGHT:g} "
                          f"(GD {stats['rmse']:.3f} -> GA {ev['rmse']:.3f})")
