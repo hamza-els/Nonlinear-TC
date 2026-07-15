@@ -69,3 +69,15 @@ GD baseline (seed 0): rmse 0.0162  bias2 2.63e-04  var 0.022
   gen  100  fitness 2.727e-05  bias 2.727e-05  var 0.014    52.07 s/gen  (5273s total)
   gen  110  fitness 2.897e-05  bias 2.897e-05  var 0.014    52.06 s/gen  (5794s total)
   gen  120  fitness 2.456e-05  bias 2.456e-05  var 0.014    52.05 s/gen  (6314s total)
+  gen  130  fitness 2.637e-05  bias 2.637e-05  var 0.014    52.05 s/gen  (6835s total)
+  gen  140  fitness 2.443e-05  bias 2.443e-05  var 0.014    52.05 s/gen  (7355s total)
+  gen  150  fitness 2.367e-05  bias 2.367e-05  var 0.014    52.05 s/gen  (7876s total)
+  gen  160  fitness 2.182e-05  bias 2.182e-05  var 0.013    52.05 s/gen  (8396s total)
+  gen  170  fitness 2.316e-05  bias 2.316e-05  var 0.013    52.05 s/gen  (8917s total)
+  gen  180  fitness 2.522e-05  bias 2.522e-05  var 0.013    52.05 s/gen  (9437s total)
+  gen  190  fitness 2.251e-05  bias 2.251e-05  var 0.013    52.05 s/gen  (9958s total)
+  gen  199  fitness 2.206e-05  bias 2.206e-05  var 0.013    52.05 s/gen  (10426s total)
+
+GA-finetuned:  rmse 0.0079  bias2 6.28e-05  var 0.013
+GD baseline:   rmse 0.0162  bias2 2.63e-04  var 0.022
+saved /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/../../Graphs/gd_graphs/fig_teacher_gafinetune_seed0_g200_vw0_M1000_crn.png
