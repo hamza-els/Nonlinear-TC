@@ -35,7 +35,8 @@ import torch
 from digital_net import target, features, N, HIDDEN, N_OUT, N_IN
 from thermo_student import ThermoStudent, BETA, MU, TF, DT
 from train_gd import run, evaluate
-from plots.plot_output_samples import plot_output
+# NOTE: plotting is imported lazily in main() -- matplotlib may not exist on
+# headless cluster nodes, and the figure is optional (npz is saved first).
 
 GDIR = os.path.join(_GD_ROOT, "..", "..", "Graphs", "gd_graphs")
 SEED = int(sys.argv[1]) if len(sys.argv) > 1 else 0
@@ -209,11 +210,16 @@ def main():
              var_weight=VAR_WEIGHT, tf=TF, beta=BETA,
              crn=CRN, P=P, n_elite=N_ELITE, K=K, m_fit=M_FIT,
              m_chunk=M_CHUNK, mut=MUT)
-    plot_output(tuned, teacher,
-                out_path=f"{GDIR}/fig_teacher_gafinetune_{tag}.png",
-                suptitle=f"N: GA fine-tune of GD solution, seed {SEED}, "
-                         f"{GENS} gens, var_weight={VAR_WEIGHT:g} "
-                         f"(GD {stats['rmse']:.3f} -> GA {ev['rmse']:.3f})")
+    try:
+        from plots.plot_output_samples import plot_output
+        plot_output(tuned, teacher,
+                    out_path=f"{GDIR}/fig_teacher_gafinetune_{tag}.png",
+                    suptitle=f"N: GA fine-tune of GD solution, seed {SEED}, "
+                             f"{GENS} gens, var_weight={VAR_WEIGHT:g} "
+                             f"(GD {stats['rmse']:.3f} -> GA {ev['rmse']:.3f})")
+    except Exception as e:
+        print(f"figure skipped ({type(e).__name__}: {e}); "
+              f"regenerate locally from the saved npz")
 
 
 if __name__ == "__main__":

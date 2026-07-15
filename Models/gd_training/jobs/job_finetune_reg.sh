@@ -20,7 +20,10 @@ module load ml/pytorch
 # ...) comes from the script's constants and is printed at the top of the log
 # and encoded in the output filename tag.
 
+# works whether submitted from gd_training (sbatch jobs/job_...) or from
+# inside jobs/ (sbatch job_...): cd up until experiments/ is visible
 cd "$SLURM_SUBMIT_DIR"
+if [ ! -d experiments ]; then cd ..; fi
 mkdir -p runs logs
 python -u -c "import torch; print('cuda:', torch.cuda.is_available(), torch.cuda.get_device_name(0))"
 python -u experiments/experiment_ga_finetune.py 0 200 0

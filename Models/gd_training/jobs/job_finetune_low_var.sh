@@ -23,7 +23,10 @@ module load ml/pytorch
 # expect this run to spend most of its effort quieting the machine, possibly
 # trading some bias away -- same trade as the cluster low_var GA runs.
 
+# works whether submitted from gd_training (sbatch jobs/job_...) or from
+# inside jobs/ (sbatch job_...): cd up until experiments/ is visible
 cd "$SLURM_SUBMIT_DIR"
+if [ ! -d experiments ]; then cd ..; fi
 mkdir -p runs logs
 python -u -c "import torch; print('cuda:', torch.cuda.is_available(), torch.cuda.get_device_name(0))"
 python -u experiments/experiment_ga_finetune.py 0 200 0.05
