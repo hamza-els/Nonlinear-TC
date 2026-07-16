@@ -40,7 +40,7 @@ OUT_PATH = os.path.join(_GD_ROOT, "..", "..", "Graphs", "gd_graphs",
 def plot_trajectories(student, teacher, out_path=OUT_PATH,
                       suptitle="student node trajectories vs idealized "
                                "teacher trajectories", gains=None,
-                      target_fn=None):
+                      target_fn=None, tf=TF):
     """Draw the trajectory-comparison figure for a trained (student, teacher).
 
     gains: optional per-node (N,) multipliers applied to the targets (for
@@ -56,13 +56,13 @@ def plot_trajectories(student, teacher, out_path=OUT_PATH,
     A3 = get_A(z3)                                          # (3, N)
     if gains is not None:
         A3 = A3 * gains
-    ideal3 = idealized_trajectory(A3)                       # (K+1, 3, N)
+    ideal3 = idealized_trajectory(A3, tf=tf)                       # (K+1, 3, N)
     with torch.no_grad():
-        steps, mean3 = student.mean_trajectory(z3, M=200, record_every=10,
+        steps, mean3 = student.mean_trajectory(z3, M=200, record_every=10, tf=tf,
                                                seed=0)     # (T, 3, N)
     mean3 = mean3.cpu()
     ideal3_sub = ideal3[steps].cpu()                        # (T, 3, N)
-    t_frac = steps.numpy() * DT / TF
+    t_frac = steps.numpy() * DT / tf
 
     # Track the same nodes in every panel: output + 3 largest-|target| hidden.
     hid_rank = A3[:, :HIDDEN].abs().mean(dim=0).argsort(descending=True)
@@ -75,9 +75,9 @@ def plot_trajectories(student, teacher, out_path=OUT_PATH,
     Ag = get_A(zg)
     if gains is not None:
         Ag = Ag * gains
-    idealg = idealized_trajectory(Ag)
+    idealg = idealized_trajectory(Ag, tf=tf)
     with torch.no_grad():
-        steps_g, meang = student.mean_trajectory(zg, M=100, record_every=20,
+        steps_g, meang = student.mean_trajectory(zg, M=100, record_every=20, tf=tf,
                                                  seed=1)
     dev = (meang - idealg[steps_g]) ** 2                    # (T, 21, N)
     node_rms = dev.mean(dim=(0, 1)).sqrt().cpu().numpy()    # (N,)

@@ -32,22 +32,27 @@ import torch
 
 from digital_net import target
 from train_gd import run
+from thermo_student import TF
 
 OUT_PATH = os.path.join(_GD_ROOT, "..", "..", "Graphs", "gd_graphs",
                         "fig_output_samples.png")
 
 
 def plot_output(student, teacher, out_path=OUT_PATH,
-                suptitle="teacher vs GD-trained student output, 250 z-points"):
-    """Draw the 4-panel output figure for an already-trained (student, teacher)."""
+                suptitle="teacher vs GD-trained student output, 250 z-points",
+                tf=None):
+    """Draw the 4-panel output figure for an already-trained (student, teacher).
+
+    tf: observation time for the student rollouts (defaults to module TF)."""
     K = 250
     device = student.b.device
+    tf = tf if tf is not None else TF
     z = torch.linspace(0.0, 1.0, K, device=device)
     with torch.no_grad():
         yt = teacher(z)                                              # (K,)
-        y1 = student.sample_outputs(z, M=1, seed=123).reshape(-1)    # (K,)
-        y20 = student.sample_outputs(z, M=20, seed=456).mean(dim=1)  # (K,)
-        y100 = student.sample_outputs(z, M=100, seed=789).mean(dim=1)
+        y1 = student.sample_outputs(z, M=1, seed=123, tf=tf).reshape(-1)    # (K,)
+        y20 = student.sample_outputs(z, M=20, seed=456, tf=tf).mean(dim=1)  # (K,)
+        y100 = student.sample_outputs(z, M=100, seed=789, tf=tf).mean(dim=1)
     y0 = target(z)
 
     zn, y0n = z.cpu().numpy(), y0.cpu().numpy()

@@ -30,7 +30,7 @@ import numpy as np
 import torch
 
 from digital_net import target, train_teacher
-from train_gd import student_targets, train_student, evaluate
+from train_gd import student_targets, train_student, evaluate, save_student
 
 GDIR = os.path.join(_GD_ROOT, "..", "..", "Graphs", "gd_graphs")
 NPZ = os.path.join(_GD_ROOT, "runs", "tf_scan_results.npz")
@@ -41,7 +41,7 @@ TF_LIST = [0.05] + [round(0.1 * k, 2) for k in range(1, 31)]   # 0.05, 0.1..3.0
 # is sampled exactly; shared by all computers (rectangular phi array)
 SWEEP = np.unique(np.round(np.concatenate(
     [np.linspace(0.05, 6.0, 25), np.array(TF_LIST)]), 4))
-K_TRAIN = 128
+K_TRAIN = 250
 M_EVAL = 256      # standard reporting protocol for the per-clock RMSE
 M_SWEEP = 128     # samples per sweep point
 
@@ -64,7 +64,7 @@ def scan():
                                 verbose=False)
         z_train = torch.linspace(0.0, 1.0, K_TRAIN, device=device)
         A = student_targets(teacher, z_train)
-        z_eval = torch.linspace(0.0, 1.0, 101, device=device)
+        z_eval = torch.linspace(0.0, 1.0, 250, device=device)
         y0 = target(z_eval)
 
         for ti, tf in enumerate(TF_LIST):
@@ -74,6 +74,11 @@ def scan():
                                 seed=seed + 1, tf=tf)
             ev = evaluate(student, M=M_EVAL, seed=seed, device=device, tf=tf)
             rmse[ti, si] = ev["rmse"]
+            save_student(student, f"tfscan_tf{tf:g}_seed{seed}",
+                         meta={"experiment": "tf_scan", "tf": tf,
+                               "seed": seed, "K": K_TRAIN,
+                               "rmse": ev["rmse"], "bias2": ev["bias2"],
+                               "var": ev["var"]})
             with torch.no_grad():
                 for j, t_obs in enumerate(SWEEP):
                     pred = student.sample_outputs(

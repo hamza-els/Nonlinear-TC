@@ -42,7 +42,7 @@ def main():
     torch.manual_seed(SEED)
     student, teacher, stats = run(seed=SEED)
     device = student.b.device
-    z = torch.linspace(0.0, 1.0, 101, device=device)
+    z = torch.linspace(0.0, 1.0, 250, device=device)
     y0 = target(z)
 
     # log grid plus extra linear-spaced points so the linear panel is smooth

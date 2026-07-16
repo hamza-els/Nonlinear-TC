@@ -46,7 +46,7 @@ VAR_WEIGHT = float(sys.argv[3]) if len(sys.argv) > 3 else 0.0
 P = 50          # population size
 N_ELITE = 5
 MUT = 2e-2      # base mutation scale, divided by sqrt(fan-in) per tensor
-K = 256         # z-grid for fitness
+K = 250         # z-grid for fitness (paper convention, Eq. S14)
 M_FIT = 1000    # samples per (candidate, z) during fitness evaluation
 # Common random numbers: share one noise draw across all P candidates per
 # step, so selection compares parameters rather than luck.  Worth it when the

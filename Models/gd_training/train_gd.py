@@ -16,13 +16,42 @@ Defaults here are deliberately small for a quick local sanity check; scale up
 K / epochs (and run on a GPU) for a real fit -- see run_config() notes.
 """
 
+import os
 import time
+from datetime import datetime
 
 import numpy as np
 import torch
 
 from digital_net import train_teacher, target, N, HIDDEN
 from thermo_student import ThermoStudent, idealized_trajectory, TF, DT
+
+WEIGHTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "runs", "weights")
+
+
+def save_student(student, label, meta=None):
+    """Persist all student tensors (incl. readout) with a provenance label.
+
+    Files land in runs/weights/ as <timestamp>_<label>.pt so successive
+    iterations of the same experiment never overwrite each other.  meta is an
+    arbitrary dict (config, stats) stored alongside.  Returns the path.
+    """
+    os.makedirs(WEIGHTS_DIR, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    path = os.path.join(WEIGHTS_DIR, f"{stamp}_{label}.pt")
+    torch.save({"state_dict": {k: v.cpu() for k, v in
+                               student.state_dict().items()},
+                "meta": meta or {}}, path)
+    return path
+
+
+def load_student(path, device="cpu"):
+    """Rebuild a ThermoStudent from a save_student() file: (student, meta)."""
+    d = torch.load(path, map_location=device)
+    student = ThermoStudent().to(device)
+    student.load_state_dict(d["state_dict"])
+    return student, d.get("meta", {})
 
 
 def student_targets(teacher, z, act_scale=1.0):
@@ -41,7 +70,7 @@ def student_targets(teacher, z, act_scale=1.0):
 
 
 def train_student(A, z, rounds=30, rel_tol=1e-5, tf=TF, dt=DT,
-                  guide_beta=None, guide_M=4,
+                  guide_beta=None, guide_M=4, oo_couplings=True,
                   seed=0, device="cpu", verbose=True):
     """Fit a ThermoStudent to reproduce the idealized trajectories for (A, z).
 
@@ -66,7 +95,7 @@ def train_student(A, z, rounds=30, rel_tol=1e-5, tf=TF, dt=DT,
         T_, B_, M_, N_ = traj.shape
         traj = traj.reshape(T_, B_ * M_, N_)          # fold realizations
         z = z.repeat_interleave(M_)                   # matching inputs
-    student = ThermoStudent(seed=seed).to(device)
+    student = ThermoStudent(seed=seed, oo_couplings=oo_couplings).to(device)
     opt = torch.optim.LBFGS(student.parameters(), max_iter=40, history_size=30,
                             line_search_fn="strong_wolfe")
 
@@ -90,7 +119,7 @@ def train_student(A, z, rounds=30, rel_tol=1e-5, tf=TF, dt=DT,
     return student, history
 
 
-def evaluate(student, K=101, M=256, seed=0, device="cpu", tf=TF):
+def evaluate(student, K=250, M=256, seed=0, device="cpu", tf=TF):
     """Evaluate the stochastic student on a z-grid with one rollout.
 
     Returns a dict of stats: rmse (of the M-sample-averaged prediction),
@@ -112,9 +141,9 @@ def evaluate(student, K=101, M=256, seed=0, device="cpu", tf=TF):
     }
 
 
-def run(teacher_epochs=3000, K=128, student_rounds=30, act_scale=1.0,
+def run(teacher_epochs=3000, K=250, student_rounds=30, act_scale=1.0,
         teacher_wd=0.0, teacher_act_reg=0.0, teacher_sat_reg=0.0,
-        teacher_dropout=0.0, tf=TF,
+        teacher_dropout=0.0, tf=TF, oo_couplings=True,
         eval_M=256, device=None, save_path=None, seed=0):
     """Full teacher -> student pipeline. Returns (student, teacher, stats)."""
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
@@ -132,7 +161,8 @@ def run(teacher_epochs=3000, K=128, student_rounds=30, act_scale=1.0,
     print("[2/3] training thermodynamic student by gradient descent ...")
     t1 = time.time()
     student, history = train_student(A, z, rounds=student_rounds,
-                                     tf=tf, seed=seed, device=device)
+                                     tf=tf, oo_couplings=oo_couplings,
+                                     seed=seed, device=device)
     t_student = time.time() - t1
 
     print("[3/3] fitting readout scale (post-training) and evaluating ...")
@@ -165,6 +195,11 @@ def run(teacher_epochs=3000, K=128, student_rounds=30, act_scale=1.0,
     print(f"pred range          [{ev['pred_min']:+.3f}, {ev['pred_max']:+.3f}]"
           f"   (target [-1, +1])")
     print(f"trainable params    {n_params}")
+    oo_tag = "" if oo_couplings else "_nooo"
+    wpath = save_student(student, f"run_seed{seed}_tf{tf:g}_K{K}{oo_tag}",
+                         meta={**stats, "tf": tf, "K": K, "seed": seed,
+                               "oo_couplings": oo_couplings})
+    print(f"weights saved       {os.path.basename(wpath)}")
     print("-" * 60)
 
     if save_path:
@@ -180,4 +215,4 @@ if __name__ == "__main__":
     # End-to-end run; ~1-2 min on CPU with the defaults below. Raise K,
     # teacher_epochs, student_rounds and eval_M for a higher-quality fit.
     torch.manual_seed(0)
-    run(teacher_epochs=3000, K=128, eval_M=256)
+    run(teacher_epochs=3000, K=250, eval_M=256)
