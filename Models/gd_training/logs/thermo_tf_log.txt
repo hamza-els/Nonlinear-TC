@@ -1,0 +1,27 @@
+config: activation=thermo TARGET_FREQ=2.0 seeds=[0, 1, 2, 3, 4] tfs=[0.5, 1.0, 1.5] sweep_pts=33 K=250 M_eval=256 M_sweep=128 device=cuda
+  teacher seed 0: fit mse 1.77e-05
+>>> tf=0.5  seed=0  rmse=0.0236  var=0.053  phi_min=6.28e-04  (72s)
+>>> tf=1    seed=0  rmse=0.0496  var=0.293  phi_min=4.05e-03  (141s)
+>>> tf=1.5  seed=0  rmse=0.0452  var=0.233  phi_min=3.07e-03  (223s)
+  teacher seed 1: fit mse 4.49e-05
+>>> tf=0.5  seed=1  rmse=0.0155  var=0.022  phi_min=3.81e-04  (290s)
+>>> tf=1    seed=1  rmse=0.0279  var=0.049  phi_min=9.32e-04  (377s)
+>>> tf=1.5  seed=1  rmse=0.0526  var=0.109  phi_min=2.53e-03  (477s)
+  teacher seed 2: fit mse 2.63e-05
+>>> tf=0.5  seed=2  rmse=0.0169  var=0.021  phi_min=2.92e-04  (577s)
+>>> tf=1    seed=2  rmse=0.0342  var=0.070  phi_min=1.36e-03  (663s)
+>>> tf=1.5  seed=2  rmse=0.0248  var=0.032  phi_min=8.30e-04  (763s)
+  teacher seed 3: fit mse 2.86e-05
+>>> tf=0.5  seed=3  rmse=0.0257  var=0.018  phi_min=6.37e-04  (864s)
+>>> tf=1    seed=3  rmse=0.0233  var=0.020  phi_min=6.14e-04  (952s)
+>>> tf=1.5  seed=3  rmse=0.0187  var=0.044  phi_min=6.02e-04  (1054s)
+  teacher seed 4: fit mse 1.94e-05
+>>> tf=0.5  seed=4  rmse=0.0129  var=0.016  phi_min=2.21e-04  (1154s)
+>>> tf=1    seed=4  rmse=0.0204  var=0.016  phi_min=4.99e-04  (1242s)
+>>> tf=1.5  seed=4  rmse=0.0328  var=0.030  phi_min=1.11e-03  (1342s)
+
+=== summary (rmse per tf) ===
+  tf=0.5  best 0.0129  median 0.0169  worst 0.0257  |  median var 0.021
+  tf=1    best 0.0204  median 0.0279  worst 0.0496  |  median var 0.049
+  tf=1.5  best 0.0187  median 0.0328  worst 0.0526  |  median var 0.044
+saved C:\Nonlinear-TC-Project\Models\gd_training\..\..\Graphs\gd_graphs\fig_thermo_tf_grid.png
