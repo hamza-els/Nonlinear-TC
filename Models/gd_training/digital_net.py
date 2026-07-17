@@ -37,9 +37,26 @@ def features(z):
     return torch.stack([z ** k for k in range(1, N_IN + 1)], dim=-1)
 
 
+# Target frequency: y0(z) = cos(TARGET_FREQ * pi * z) on z in [0, 1].
+# 2.0 = one period (the paper's cos(2 pi z)); 4.0 = two periods, a harder
+# target for the computer's finite-time dynamics to follow.
+TARGET_FREQ = 2.0
+
+
+def set_target_freq(freq):
+    """Set the global target frequency: y0(z) = cos(freq * pi * z).
+
+    target() reads TARGET_FREQ at call time, so this switches the task for
+    every caller (teacher fit, student targets, evaluation).  Call it BEFORE
+    training a teacher.
+    """
+    global TARGET_FREQ
+    TARGET_FREQ = float(freq)
+
+
 def target(z):
-    """Target function y0(z) = cos(2 pi z)."""
-    return torch.cos(2.0 * torch.pi * z)
+    """Target function y0(z) = cos(TARGET_FREQ * pi * z)."""
+    return torch.cos(TARGET_FREQ * torch.pi * z)
 
 
 class DigitalCosineNet(nn.Module):

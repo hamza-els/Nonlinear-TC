@@ -71,6 +71,7 @@ def student_targets(teacher, z, act_scale=1.0):
 
 def train_student(A, z, rounds=30, rel_tol=1e-5, tf=TF, dt=DT,
                   guide_beta=None, guide_M=4, oo_couplings=True,
+                  guide_mode="exact", guide_k=1.0,
                   seed=0, device="cpu", verbose=True):
     """Fit a ThermoStudent to reproduce the idealized trajectories for (A, z).
 
@@ -88,10 +89,12 @@ def train_student(A, z, rounds=30, rel_tol=1e-5, tf=TF, dt=DT,
     A = A.to(device)
     z = z.to(device)
     if guide_beta is None:
-        traj = idealized_trajectory(A, tf=tf, dt=dt)  # (K+1, B, N), no grad
+        traj = idealized_trajectory(A, tf=tf, dt=dt, guide_mode=guide_mode,
+                                    guide_k=guide_k)  # (K+1, B, N), no grad
     else:
         traj = idealized_trajectory(A, tf=tf, dt=dt, beta=guide_beta,
-                                    M=guide_M, seed=seed + 100)
+                                    M=guide_M, seed=seed + 100,
+                                    guide_mode=guide_mode, guide_k=guide_k)
         T_, B_, M_, N_ = traj.shape
         traj = traj.reshape(T_, B_ * M_, N_)          # fold realizations
         z = z.repeat_interleave(M_)                   # matching inputs
@@ -144,6 +147,7 @@ def evaluate(student, K=250, M=256, seed=0, device="cpu", tf=TF):
 def run(teacher_epochs=3000, K=250, student_rounds=30, act_scale=1.0,
         teacher_wd=0.0, teacher_act_reg=0.0, teacher_sat_reg=0.0,
         teacher_dropout=0.0, tf=TF, oo_couplings=True,
+        guide_mode="exact", guide_k=1.0,
         eval_M=256, device=None, save_path=None, seed=0):
     """Full teacher -> student pipeline. Returns (student, teacher, stats)."""
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
@@ -162,6 +166,7 @@ def run(teacher_epochs=3000, K=250, student_rounds=30, act_scale=1.0,
     t1 = time.time()
     student, history = train_student(A, z, rounds=student_rounds,
                                      tf=tf, oo_couplings=oo_couplings,
+                                     guide_mode=guide_mode, guide_k=guide_k,
                                      seed=seed, device=device)
     t_student = time.time() - t1
 

@@ -80,15 +80,26 @@ def _intrinsic_grad(x):
 
 
 @torch.no_grad()
-def idealized_trajectory(A, tf=TF, dt=DT, mu=MU, beta=None, M=1, seed=None):
-    """Build "teacher #2": the idealized trajectory whose activations relax to A.
+def idealized_trajectory(A, tf=TF, dt=DT, mu=MU, beta=None, M=1, seed=None,
+                         guide_mode="exact", guide_k=1.0):
+    """Build "teacher #2": the idealized trajectory guided toward A.
 
-    Uses a NONINTERACTING (Jij = 0) computer whose guide biases are chosen so
-    the T=0 fixed point equals A_i exactly.  The steady state of
-    x_dot = -mu(2 J2 x + 4 J4 x^3 - b0) satisfies 2 J2 x + 4 J4 x^3 = b0, so
-    setting  b0_i = 2 J2 A_i + 4 J4 A_i^3  makes x_i relax to exactly A_i.
-    (The paper sets b0 merely proportional to A and accepts the nonlinearity;
-    the exact inverse is a small improvement that helps the regression task.)
+    guide_mode selects how the noninteracting (Jij = 0) guide's biases b0 are
+    built from the target activations A:
+
+    "exact" (default) -- invert the fixed-point relation so the T=0 guide
+        relaxes to exactly A.  The steady state of
+        x_dot = -mu(2 J2 x + 4 J4 x^3 - b0) satisfies 2 J2 x + 4 J4 x^3 = b0,
+        so b0_i = 2 J2 A_i + 4 J4 A_i^3 gives x_i -> A_i exactly.
+
+    "proportional" -- the paper's prescription (Sec. III): b0_i = guide_k * A_i,
+        merely PROPORTIONAL to the activations.  The guide's long-time
+        activations are then NOT equal to A (the units' intrinsic response is
+        nonlinear); the paper accepts this, reasoning that biases and long-time
+        activations are strongly correlated and that a classifier depends only
+        on the hierarchy of output activations, not their precise values.
+        (The paper's extra 2A-1 output shift is a class-encoding device with
+        no analog in regression, so it is not applied here.)
 
     beta=None (default): zero-temperature, deterministic guide -- returns
     (n_steps + 1, B, N), starting from x = 0.
@@ -102,7 +113,12 @@ def idealized_trajectory(A, tf=TF, dt=DT, mu=MU, beta=None, M=1, seed=None):
 
     A : (B, N) target activations, one row per input.
     """
-    b0 = 2.0 * J2 * A + 4.0 * J4 * A ** 3          # (B, N)
+    if guide_mode == "exact":
+        b0 = 2.0 * J2 * A + 4.0 * J4 * A ** 3      # (B, N)
+    elif guide_mode == "proportional":
+        b0 = guide_k * A                           # paper: b0 propto A
+    else:
+        raise ValueError(f"unknown guide_mode {guide_mode!r}")
     n_steps = int(round(tf / dt))
     if beta is None:
         x = torch.zeros_like(A)

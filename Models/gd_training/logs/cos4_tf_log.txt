@@ -1,0 +1,27 @@
+config: TARGET_FREQ=4.0 seeds=[0, 1, 2, 3, 4] tfs=[0.5, 1.0, 1.5] sweep_pts=33 K=250 M_eval=256 M_sweep=128 device=cuda
+  teacher seed 0: fit mse 1.33e-05
+>>> tf=0.5  seed=0  rmse=0.0775  var=0.123  phi_min=6.48e-03  (65s)
+>>> tf=1    seed=0  rmse=0.0509  var=0.119  phi_min=3.24e-03  (151s)
+>>> tf=1.5  seed=0  rmse=0.0975  var=0.767  phi_min=1.20e-02  (240s)
+  teacher seed 1: fit mse 2.74e-05
+>>> tf=0.5  seed=1  rmse=0.1050  var=0.550  phi_min=1.37e-02  (333s)
+>>> tf=1    seed=1  rmse=0.1177  var=0.156  phi_min=1.27e-02  (426s)
+>>> tf=1.5  seed=1  rmse=0.1285  var=0.169  phi_min=1.46e-02  (546s)
+  teacher seed 2: fit mse 2.58e-05
+>>> tf=0.5  seed=2  rmse=0.0856  var=0.152  phi_min=7.96e-03  (636s)
+>>> tf=1    seed=2  rmse=0.1193  var=0.173  phi_min=1.39e-02  (727s)
+>>> tf=1.5  seed=2  rmse=0.0981  var=0.298  phi_min=9.69e-03  (811s)
+  teacher seed 3: fit mse 3.30e-04
+>>> tf=0.5  seed=3  rmse=0.0657  var=0.177  phi_min=4.97e-03  (878s)
+>>> tf=1    seed=3  rmse=0.0524  var=0.145  phi_min=3.05e-03  (950s)
+>>> tf=1.5  seed=3  rmse=0.0791  var=0.348  phi_min=5.47e-03  (1034s)
+  teacher seed 4: fit mse 2.95e-05
+>>> tf=0.5  seed=4  rmse=0.1422  var=0.615  phi_min=2.36e-02  (1103s)
+>>> tf=1    seed=4  rmse=0.1563  var=0.688  phi_min=2.63e-02  (1185s)
+>>> tf=1.5  seed=4  rmse=0.1336  var=1.249  phi_min=2.11e-02  (1269s)
+
+=== summary (rmse per tf) ===
+  tf=0.5  best 0.0657  median 0.0856  worst 0.1422
+  tf=1    best 0.0509  median 0.1177  worst 0.1563
+  tf=1.5  best 0.0791  median 0.0981  worst 0.1336
+saved C:\Nonlinear-TC-Project\Models\gd_training\..\..\Graphs\gd_graphs\fig_cos4_tf_grid.png
