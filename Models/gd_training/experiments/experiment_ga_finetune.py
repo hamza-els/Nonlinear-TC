@@ -18,7 +18,7 @@ Design choices:
   - Elites survive unmutated, so the GD baseline can never be lost.
 
 Usage:
-    python experiments/experiment_ga_finetune.py [seed] [generations] [var_weight]
+    python experiments/experiment_ga_finetune.py [seed] [generations] [var_weight] [activation]
 """
 
 import os
@@ -32,7 +32,8 @@ sys.path.insert(0, _GD_ROOT)
 import numpy as np
 import torch
 
-from digital_net import target, features, N, HIDDEN, N_OUT, N_IN
+from digital_net import (target, features, set_activation, N, HIDDEN,
+                         N_OUT, N_IN)
 from thermo_student import ThermoStudent, BETA, MU, TF, DT
 from train_gd import run, evaluate
 # NOTE: plotting is imported lazily in main() -- matplotlib may not exist on
@@ -42,6 +43,8 @@ GDIR = os.path.join(_GD_ROOT, "..", "..", "Graphs", "gd_graphs")
 SEED = int(sys.argv[1]) if len(sys.argv) > 1 else 0
 GENS = int(sys.argv[2]) if len(sys.argv) > 2 else 200
 VAR_WEIGHT = float(sys.argv[3]) if len(sys.argv) > 3 else 0.0
+# 4th arg: teacher activation for the GD warm start ("tanh" | "thermo").
+ACT = sys.argv[4] if len(sys.argv) > 4 else "tanh"
 
 P = 50          # population size
 N_ELITE = 5
@@ -126,7 +129,8 @@ def population_fitness(pop, phi, y0, gen_seed, device):
 def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     t0 = time.time()
-    print(f"config: seed={SEED} gens={GENS} var_weight={VAR_WEIGHT:g} | "
+    set_activation(ACT)
+    print(f"config: seed={SEED} gens={GENS} var_weight={VAR_WEIGHT:g} act={ACT} | "
           f"P={P} elites={N_ELITE} K={K} M_FIT={M_FIT} M_CHUNK={M_CHUNK} "
           f"CRN={CRN} MUT={MUT:g} | tf={TF:g} beta={BETA:g} dt={DT:g}",
           flush=True)
@@ -202,14 +206,14 @@ def main():
 
     runs_dir = os.path.join(_GD_ROOT, "runs")
     os.makedirs(runs_dir, exist_ok=True)
-    tag = (f"seed{SEED}_g{GENS}_vw{VAR_WEIGHT:g}_M{M_FIT}_"
+    tag = (f"{ACT}_seed{SEED}_g{GENS}_vw{VAR_WEIGHT:g}_M{M_FIT}_"
            f"{'crn' if CRN else 'nocrn'}")
     np.savez(os.path.join(runs_dir, f"run_ga_finetune_{tag}.npz"),
              **{f"p_{k}": v.cpu().numpy() for k, v in champ.items()},
              history=np.asarray(history), seed=SEED, gens=GENS,
              var_weight=VAR_WEIGHT, tf=TF, beta=BETA,
              crn=CRN, P=P, n_elite=N_ELITE, K=K, m_fit=M_FIT,
-             m_chunk=M_CHUNK, mut=MUT)
+             m_chunk=M_CHUNK, mut=MUT, activation=ACT)
     try:
         from plots.plot_output_samples import plot_output
         plot_output(tuned, teacher,

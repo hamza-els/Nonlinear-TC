@@ -42,6 +42,67 @@ def features(z):
 # target for the computer's finite-time dynamics to follow.
 TARGET_FREQ = 2.0
 
+# --- Activation ------------------------------------------------------------
+# "thermo" is a fit to the TRUE finite-time activation of an isolated
+# thermodynamic neuron at our operating point (beta=10, tf=0.40), measured
+# over the physical field I in [-40, 40] (Graphs/neuron_graphs/
+# activation_fit.py).  In field units the 3-parameter fit is
+#
+#     sigma(I) = 0.3524 * (I^2/(I^2+222.0)) * cbrt(I) + tanh(0.2469 I)
+#     (RMS 0.0081 vs the true curve; best-fit tanh manages only 0.1132)
+#
+# It captures the two limits tanh cannot: linear at small I, CUBE-ROOT
+# (unbounded) at large I.  But a teacher's PRE-ACTIVATIONS are O(1), not O(40):
+# dropped in as-is the teacher only ever sees the flat small-I region (slope
+# 0.247, 4x flatter than tanh) and degenerates to a weak linear map -- measured
+# 2026-07-16: median student RMSE 0.081 vs 0.016 for tanh, max|A| stuck at 1.06.
+# So the constants below are the SAME curve rescaled to unit slope at the
+# origin (argument gain 1/0.2469 = 4.05), which is the teacher's natural input
+# scale:
+#
+#     sigma(x) = ACT_A * (x^2/(x^2+ACT_C)) * cbrt(x) + tanh(x)
+#
+# In that form it performs on par with tanh (median 0.0130 vs 0.0157 over
+# seeds 0-2: 1 win, 1 tie, 1 loss -- within seed noise).  Why no gain: the
+# exact-inverse guide bias b0 = 2A + 4A^3 already makes the guide hit ANY
+# target A exactly, so the activation mismatch the papers describe is already
+# compensated; the teacher's activation only sets the shape of the feature
+# basis, and tanh features are just as good a basis here.
+ACT_A, ACT_C = 0.5617, 13.53
+ACTIVATION = "tanh"            # "tanh" | "thermo" -- tanh is the incumbent
+
+
+def thermo_activation(x):
+    """Fitted thermodynamic-neuron activation (numerically stable form).
+
+        sigma(x) = ACT_A * (x^2/(x^2+ACT_C)) * cbrt(x) + tanh(x)
+
+    Evaluated via the identity (x^2/(x^2+c)) * cbrt(x) == sign(x) *
+    |x|^(7/3)/(x^2+c): algebraically identical (verified to 5e-7) but with no
+    negative powers.  The naive form's gradient hits 0*inf = NaN at exactly
+    x = 0 -- the gate makes the true limit finite (the product ~ x^(7/3), so
+    sigma'(0) = 1), but floating point does not know that.
+    """
+    return (ACT_A * torch.sign(x) * x.abs().pow(7.0 / 3.0) / (x ** 2 + ACT_C)
+            + torch.tanh(x))
+
+
+def activation(x):
+    """The teacher's neuron nonlinearity, per the ACTIVATION setting."""
+    if ACTIVATION == "tanh":
+        return torch.tanh(x)
+    if ACTIVATION == "thermo":
+        return thermo_activation(x)
+    raise ValueError(f"unknown ACTIVATION {ACTIVATION!r}")
+
+
+def set_activation(name):
+    """Switch the teacher's activation globally ("tanh" | "thermo")."""
+    global ACTIVATION
+    if name not in ("tanh", "thermo"):
+        raise ValueError(f"unknown activation {name!r}")
+    ACTIVATION = name
+
 
 def set_target_freq(freq):
     """Set the global target frequency: y0(z) = cos(freq * pi * z).
@@ -96,9 +157,9 @@ class DigitalCosineNet(nn.Module):
         h = features(z.reshape(-1))
         acts = []
         for layer in self.hidden:
-            h = self.drop(torch.tanh(layer(h)))
+            h = self.drop(activation(layer(h)))
             acts.append(h)
-        o = torch.tanh(self.out(h))          # (B, N_OUT) output activations
+        o = activation(self.out(h))          # (B, N_OUT) output activations
         acts.append(o)
         y = self.readout(o).reshape(-1)      # learned linear combination
         A = torch.cat(acts, dim=1)           # (B, N)
