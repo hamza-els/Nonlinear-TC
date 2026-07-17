@@ -1,0 +1,84 @@
+cuda: True Tesla V100-SXM2-32GB
+config: seed=4 gens=200 var_weight=1 act=thermo | P=50 elites=5 K=250 M_FIT=1000 M_CHUNK=500 CRN=True MUT=0.02 | tf=0.4 beta=10 dt=0.001
+[1/3] training digital teacher ...  (device: cuda)
+  teacher epoch     0  mse 5.057e-01
+  teacher epoch   300  mse 6.071e-04
+  teacher epoch   600  mse 1.063e-04
+  teacher epoch   900  mse 7.189e-05
+  teacher epoch  1200  mse 5.001e-05
+  teacher epoch  1500  mse 3.861e-05
+  teacher epoch  1800  mse 2.748e-04
+  teacher epoch  2100  mse 2.529e-05
+  teacher epoch  2400  mse 2.182e-05
+  teacher epoch  2700  mse 1.979e-05
+  teacher epoch  2999  mse 1.862e-05
+[2/3] training thermodynamic student by gradient descent ...
+  student LBFGS round 0  OM loss 3.6349e+00
+  student LBFGS round 1  OM loss 4.5061e-02
+  student LBFGS round 2  OM loss 3.0241e-02
+  student LBFGS round 3  OM loss 1.9268e-02
+  student LBFGS round 4  OM loss 1.3901e-02
+  student LBFGS round 5  OM loss 1.1789e-02
+  student LBFGS round 6  OM loss 1.0237e-02
+  student LBFGS round 7  OM loss 8.8800e-03
+  student LBFGS round 8  OM loss 8.1000e-03
+  student LBFGS round 9  OM loss 7.7170e-03
+  student LBFGS round 10  OM loss 7.2286e-03
+  student LBFGS round 11  OM loss 6.6561e-03
+  student LBFGS round 12  OM loss 6.1525e-03
+  student LBFGS round 13  OM loss 5.3216e-03
+  student LBFGS round 14  OM loss 4.4757e-03
+  student LBFGS round 15  OM loss 3.8832e-03
+  student LBFGS round 16  OM loss 3.5719e-03
+  student LBFGS round 17  OM loss 3.3160e-03
+  student LBFGS round 18  OM loss 3.0215e-03
+  student LBFGS round 19  OM loss 2.7323e-03
+  student LBFGS round 20  OM loss 2.5834e-03
+  student LBFGS round 21  OM loss 2.5261e-03
+  student LBFGS round 22  OM loss 2.4873e-03
+  student LBFGS round 23  OM loss 2.4595e-03
+  student LBFGS round 24  OM loss 2.4323e-03
+  student LBFGS round 25  OM loss 2.4076e-03
+  student LBFGS round 26  OM loss 2.3941e-03
+  student LBFGS round 27  OM loss 2.3842e-03
+  student LBFGS round 28  OM loss 2.3786e-03
+  student LBFGS round 29  OM loss 2.3698e-03
+[3/3] fitting readout scale (post-training) and evaluating ...
+
+--- run summary --------------------------------------------
+teacher fit mse     1.866e-05            (14.0s)
+OM loss             3.635e+00 -> 2.370e-03  (30 LBFGS rounds, 9.7s)
+readout scale c     0.6674
+RMSE vs cos         1.179e-02            (M=256, 0.8s)
+bias^2              1.389e-04   mean_z (E[y]-y0)^2
+Var[y]              1.042e-02   mean_z per-sample variance
+pred range          [-1.001, +1.036]   (target [-1, +1])
+trainable params    5176
+weights saved       20260717-105635_run_seed4_tf0.4_K250.pt
+------------------------------------------------------------
+GD baseline (seed 4): rmse 0.0118  bias2 1.39e-04  var 0.010
+  gen    0  fitness 1.871e-02  bias 9.448e-05  var 0.019    52.28 s/gen  (77s total)
+  gen   10  fitness 1.054e-02  bias 7.886e-05  var 0.010    52.32 s/gen  (600s total)
+  gen   20  fitness 8.887e-03  bias 7.579e-05  var 0.009    52.33 s/gen  (1123s total)
+  gen   30  fitness 7.209e-03  bias 9.375e-05  var 0.007    52.32 s/gen  (1647s total)
+  gen   40  fitness 6.781e-03  bias 1.033e-04  var 0.007    52.33 s/gen  (2170s total)
+  gen   50  fitness 6.282e-03  bias 1.218e-04  var 0.006    52.32 s/gen  (2693s total)
+  gen   60  fitness 6.159e-03  bias 1.299e-04  var 0.006    52.32 s/gen  (3216s total)
+  gen   70  fitness 5.923e-03  bias 1.194e-04  var 0.006    52.33 s/gen  (3740s total)
+  gen   80  fitness 5.793e-03  bias 1.114e-04  var 0.006    52.32 s/gen  (4263s total)
+  gen   90  fitness 5.621e-03  bias 9.600e-05  var 0.006    52.32 s/gen  (4786s total)
+  gen  100  fitness 5.458e-03  bias 1.036e-04  var 0.005    52.32 s/gen  (5309s total)
+  gen  110  fitness 5.352e-03  bias 1.014e-04  var 0.005    52.32 s/gen  (5833s total)
+  gen  120  fitness 5.143e-03  bias 1.091e-04  var 0.005    52.32 s/gen  (6356s total)
+  gen  130  fitness 5.100e-03  bias 1.155e-04  var 0.005    52.32 s/gen  (6879s total)
+  gen  140  fitness 4.919e-03  bias 1.070e-04  var 0.005    52.32 s/gen  (7402s total)
+  gen  150  fitness 4.888e-03  bias 1.151e-04  var 0.005    52.33 s/gen  (7925s total)
+  gen  160  fitness 4.766e-03  bias 1.130e-04  var 0.005    52.32 s/gen  (8449s total)
+  gen  170  fitness 4.731e-03  bias 1.081e-04  var 0.005    52.31 s/gen  (8972s total)
+  gen  180  fitness 4.575e-03  bias 1.146e-04  var 0.004    52.31 s/gen  (9495s total)
+  gen  190  fitness 4.564e-03  bias 1.184e-04  var 0.004    52.32 s/gen  (10018s total)
+  gen  199  fitness 4.494e-03  bias 1.273e-04  var 0.004    52.32 s/gen  (10489s total)
+
+GA-finetuned:  rmse 0.0122  bias2 1.48e-04  var 0.004
+GD baseline:   rmse 0.0118  bias2 1.39e-04  var 0.010
+saved /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/../../Graphs/gd_graphs/fig_teacher_gafinetune_thermo_seed4_g200_vw1_M1000_crn.png
