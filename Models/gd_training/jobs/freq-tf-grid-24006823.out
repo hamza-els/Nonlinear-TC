@@ -1,0 +1,186 @@
+cuda: True Tesla V100-SXM2-16GB
+config: freqs=[1.0, 2.0, 3.0, 4.0, 5.0] tfs=[0.4, 0.8, 1.2, 1.6, 2.0] seeds=[0, 1, 2, 3, 4] sweep_pts=35 K=250 M_eval=256 M_sweep=128 device=cuda (125 computers)
+  teacher f=1 seed=0: fit mse 3.90e-06
+>>> f=1 tf=0.4  seed=0  rmse=0.0050  var=0.005  phi_min=4.21e-05  (49s)
+>>> f=1 tf=0.8  seed=0  rmse=0.0066  var=0.004  phi_min=5.78e-05  (93s)
+>>> f=1 tf=1.2  seed=0  rmse=0.0073  var=0.004  phi_min=6.67e-05  (142s)
+>>> f=1 tf=1.6  seed=0  rmse=0.0098  var=0.009  phi_min=1.39e-04  (195s)
+>>> f=1 tf=2    seed=0  rmse=0.0183  var=0.033  phi_min=4.54e-04  (250s)
+checkpoint: f=1 seed=0 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/freq_tf_grid_results.npz
+  teacher f=1 seed=1: fit mse 4.66e-06
+>>> f=1 tf=0.4  seed=1  rmse=0.0136  var=0.037  phi_min=3.64e-04  (297s)
+>>> f=1 tf=0.8  seed=1  rmse=0.0096  var=0.014  phi_min=1.55e-04  (341s)
+>>> f=1 tf=1.2  seed=1  rmse=0.0110  var=0.015  phi_min=1.65e-04  (390s)
+>>> f=1 tf=1.6  seed=1  rmse=0.0090  var=0.014  phi_min=1.31e-04  (440s)
+>>> f=1 tf=2    seed=1  rmse=0.0089  var=0.015  phi_min=1.31e-04  (494s)
+checkpoint: f=1 seed=1 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/freq_tf_grid_results.npz
+  teacher f=1 seed=2: fit mse 5.15e-06
+>>> f=1 tf=0.4  seed=2  rmse=0.0078  var=0.013  phi_min=1.10e-04  (540s)
+>>> f=1 tf=0.8  seed=2  rmse=0.0080  var=0.008  phi_min=8.63e-05  (586s)
+>>> f=1 tf=1.2  seed=2  rmse=0.0104  var=0.009  phi_min=1.20e-04  (635s)
+>>> f=1 tf=1.6  seed=2  rmse=0.0260  var=0.025  phi_min=6.88e-04  (687s)
+>>> f=1 tf=2    seed=2  rmse=0.0312  var=0.036  phi_min=1.08e-03  (742s)
+checkpoint: f=1 seed=2 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/freq_tf_grid_results.npz
+  teacher f=1 seed=3: fit mse 3.05e-06
+>>> f=1 tf=0.4  seed=3  rmse=0.0095  var=0.013  phi_min=1.61e-04  (791s)
+>>> f=1 tf=0.8  seed=3  rmse=0.0088  var=0.012  phi_min=1.13e-04  (837s)
+>>> f=1 tf=1.2  seed=3  rmse=0.0088  var=0.014  phi_min=1.36e-04  (886s)
+>>> f=1 tf=1.6  seed=3  rmse=0.0122  var=0.022  phi_min=2.15e-04  (938s)
+>>> f=1 tf=2    seed=3  rmse=0.0133  var=0.034  phi_min=2.94e-04  (993s)
+checkpoint: f=1 seed=3 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/freq_tf_grid_results.npz
+  teacher f=1 seed=4: fit mse 5.10e-06
+>>> f=1 tf=0.4  seed=4  rmse=0.0049  var=0.005  phi_min=3.65e-05  (1040s)
+>>> f=1 tf=0.8  seed=4  rmse=0.0070  var=0.006  phi_min=7.33e-05  (1085s)
+>>> f=1 tf=1.2  seed=4  rmse=0.0093  var=0.006  phi_min=7.75e-05  (1134s)
+>>> f=1 tf=1.6  seed=4  rmse=0.0108  var=0.007  phi_min=9.90e-05  (1186s)
+>>> f=1 tf=2    seed=4  rmse=0.0099  var=0.010  phi_min=1.46e-04  (1241s)
+checkpoint: f=1 seed=4 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/freq_tf_grid_results.npz
+  teacher f=2 seed=0: fit mse 6.41e-06
+>>> f=2 tf=0.4  seed=0  rmse=0.0148  var=0.024  phi_min=3.56e-04  (1290s)
+>>> f=2 tf=0.8  seed=0  rmse=0.0185  var=0.020  phi_min=4.13e-04  (1336s)
+>>> f=2 tf=1.2  seed=0  rmse=0.0255  var=0.022  phi_min=7.33e-04  (1385s)
+>>> f=2 tf=1.6  seed=0  rmse=0.0371  var=0.040  phi_min=1.60e-03  (1437s)
+>>> f=2 tf=2    seed=0  rmse=0.0391  var=0.073  phi_min=1.94e-03  (1492s)
+checkpoint: f=2 seed=0 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/freq_tf_grid_results.npz
+  teacher f=2 seed=1: fit mse 1.90e-05
+>>> f=2 tf=0.4  seed=1  rmse=0.0144  var=0.026  phi_min=2.71e-04  (1541s)
+>>> f=2 tf=0.8  seed=1  rmse=0.0203  var=0.020  phi_min=4.47e-04  (1586s)
+>>> f=2 tf=1.2  seed=1  rmse=0.0215  var=0.043  phi_min=5.51e-04  (1633s)
+>>> f=2 tf=1.6  seed=1  rmse=0.0424  var=0.190  phi_min=2.67e-03  (1683s)
+>>> f=2 tf=2    seed=1  rmse=0.0645  var=0.421  phi_min=5.76e-03  (1737s)
+checkpoint: f=2 seed=1 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/freq_tf_grid_results.npz
+  teacher f=2 seed=2: fit mse 7.77e-06
+>>> f=2 tf=0.4  seed=2  rmse=0.0235  var=0.043  phi_min=7.57e-04  (1783s)
+>>> f=2 tf=0.8  seed=2  rmse=0.0204  var=0.039  phi_min=5.47e-04  (1827s)
+>>> f=2 tf=1.2  seed=2  rmse=0.0242  var=0.045  phi_min=7.20e-04  (1874s)
+>>> f=2 tf=1.6  seed=2  rmse=0.0304  var=0.075  phi_min=1.19e-03  (1925s)
+>>> f=2 tf=2    seed=2  rmse=0.0392  var=0.090  phi_min=1.86e-03  (1980s)
+checkpoint: f=2 seed=2 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/freq_tf_grid_results.npz
+  teacher f=2 seed=3: fit mse 3.78e-03
+>>> f=2 tf=0.4  seed=3  rmse=0.0166  var=0.034  phi_min=4.22e-04  (2027s)
+>>> f=2 tf=0.8  seed=3  rmse=0.0208  var=0.061  phi_min=5.42e-04  (2072s)
+>>> f=2 tf=1.2  seed=3  rmse=0.0356  var=0.060  phi_min=1.59e-03  (2120s)
+>>> f=2 tf=1.6  seed=3  rmse=0.0349  var=0.052  phi_min=1.18e-03  (2170s)
+>>> f=2 tf=2    seed=3  rmse=0.0243  var=0.048  phi_min=7.94e-04  (2223s)
+checkpoint: f=2 seed=3 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/freq_tf_grid_results.npz
+  teacher f=2 seed=4: fit mse 6.87e-06
+>>> f=2 tf=0.4  seed=4  rmse=0.0140  var=0.015  phi_min=2.76e-04  (2269s)
+>>> f=2 tf=0.8  seed=4  rmse=0.0191  var=0.016  phi_min=4.09e-04  (2314s)
+>>> f=2 tf=1.2  seed=4  rmse=0.0236  var=0.026  phi_min=6.59e-04  (2361s)
+>>> f=2 tf=1.6  seed=4  rmse=0.0236  var=0.041  phi_min=7.67e-04  (2412s)
+>>> f=2 tf=2    seed=4  rmse=0.0281  var=0.058  phi_min=1.08e-03  (2465s)
+checkpoint: f=2 seed=4 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/freq_tf_grid_results.npz
+  teacher f=3 seed=0: fit mse 2.85e-05
+>>> f=3 tf=0.4  seed=0  rmse=0.0857  var=0.278  phi_min=8.00e-03  (2512s)
+>>> f=3 tf=0.8  seed=0  rmse=0.0504  var=0.159  phi_min=3.21e-03  (2556s)
+>>> f=3 tf=1.2  seed=0  rmse=0.0528  var=0.163  phi_min=3.16e-03  (2604s)
+>>> f=3 tf=1.6  seed=0  rmse=0.0642  var=0.395  phi_min=5.08e-03  (2656s)
+>>> f=3 tf=2    seed=0  rmse=0.0647  var=0.349  phi_min=4.79e-03  (2710s)
+checkpoint: f=3 seed=0 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/freq_tf_grid_results.npz
+  teacher f=3 seed=1: fit mse 1.86e-05
+>>> f=3 tf=0.4  seed=1  rmse=0.0462  var=0.160  phi_min=2.64e-03  (2755s)
+>>> f=3 tf=0.8  seed=1  rmse=0.0437  var=0.155  phi_min=2.09e-03  (2801s)
+>>> f=3 tf=1.2  seed=1  rmse=0.0483  var=0.234  phi_min=2.35e-03  (2849s)
+>>> f=3 tf=1.6  seed=1  rmse=0.0445  var=0.156  phi_min=2.43e-03  (2901s)
+>>> f=3 tf=2    seed=1  rmse=0.0415  var=0.205  phi_min=2.57e-03  (2956s)
+checkpoint: f=3 seed=1 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/freq_tf_grid_results.npz
+  teacher f=3 seed=2: fit mse 1.62e-05
+>>> f=3 tf=0.4  seed=2  rmse=0.0440  var=0.137  phi_min=2.34e-03  (3002s)
+>>> f=3 tf=0.8  seed=2  rmse=0.0423  var=0.103  phi_min=2.23e-03  (3047s)
+>>> f=3 tf=1.2  seed=2  rmse=0.0463  var=0.111  phi_min=2.39e-03  (3096s)
+>>> f=3 tf=1.6  seed=2  rmse=0.0622  var=0.334  phi_min=3.81e-03  (3147s)
+>>> f=3 tf=2    seed=2  rmse=0.1037  var=0.347  phi_min=9.05e-03  (3200s)
+checkpoint: f=3 seed=2 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/freq_tf_grid_results.npz
+  teacher f=3 seed=3: fit mse 1.19e-05
+>>> f=3 tf=0.4  seed=3  rmse=0.0396  var=0.209  phi_min=2.08e-03  (3247s)
+>>> f=3 tf=0.8  seed=3  rmse=0.0581  var=0.251  phi_min=3.45e-03  (3293s)
+>>> f=3 tf=1.2  seed=3  rmse=0.0761  var=0.259  phi_min=5.67e-03  (3342s)
+>>> f=3 tf=1.6  seed=3  rmse=0.0890  var=0.256  phi_min=7.71e-03  (3394s)
+>>> f=3 tf=2    seed=3  rmse=0.1072  var=0.354  phi_min=1.29e-02  (3449s)
+checkpoint: f=3 seed=3 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/freq_tf_grid_results.npz
+  teacher f=3 seed=4: fit mse 2.40e-05
+>>> f=3 tf=0.4  seed=4  rmse=0.0449  var=0.297  phi_min=3.58e-03  (3497s)
+>>> f=3 tf=0.8  seed=4  rmse=0.0722  var=0.232  phi_min=5.65e-03  (3542s)
+>>> f=3 tf=1.2  seed=4  rmse=0.1329  var=0.694  phi_min=1.37e-02  (3591s)
+>>> f=3 tf=1.6  seed=4  rmse=0.1817  var=2.299  phi_min=4.30e-02  (3643s)
+>>> f=3 tf=2    seed=4  rmse=0.1752  var=1.767  phi_min=3.59e-02  (3698s)
+checkpoint: f=3 seed=4 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/freq_tf_grid_results.npz
+  teacher f=4 seed=0: fit mse 2.66e-05
+>>> f=4 tf=0.4  seed=0  rmse=0.1047  var=0.180  phi_min=1.12e-02  (3745s)
+>>> f=4 tf=0.8  seed=0  rmse=0.0517  var=0.083  phi_min=3.10e-03  (3789s)
+>>> f=4 tf=1.2  seed=0  rmse=0.1080  var=0.405  phi_min=1.12e-02  (3837s)
+>>> f=4 tf=1.6  seed=0  rmse=0.1005  var=0.205  phi_min=1.07e-02  (3887s)
+>>> f=4 tf=2    seed=0  rmse=0.0816  var=0.335  phi_min=7.38e-03  (3942s)
+checkpoint: f=4 seed=0 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/freq_tf_grid_results.npz
+  teacher f=4 seed=1: fit mse 1.67e-05
+>>> f=4 tf=0.4  seed=1  rmse=0.1140  var=0.774  phi_min=1.61e-02  (3988s)
+>>> f=4 tf=0.8  seed=1  rmse=0.1208  var=0.179  phi_min=1.57e-02  (4033s)
+>>> f=4 tf=1.2  seed=1  rmse=0.1237  var=0.215  phi_min=1.41e-02  (4082s)
+>>> f=4 tf=1.6  seed=1  rmse=0.1375  var=0.500  phi_min=1.62e-02  (4133s)
+>>> f=4 tf=2    seed=1  rmse=0.1630  var=0.535  phi_min=1.89e-02  (4188s)
+checkpoint: f=4 seed=1 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/freq_tf_grid_results.npz
+  teacher f=4 seed=2: fit mse 1.15e-04
+>>> f=4 tf=0.4  seed=2  rmse=0.1069  var=0.211  phi_min=1.25e-02  (4235s)
+>>> f=4 tf=0.8  seed=2  rmse=0.0955  var=0.176  phi_min=9.20e-03  (4279s)
+>>> f=4 tf=1.2  seed=2  rmse=0.1236  var=0.151  phi_min=1.63e-02  (4326s)
+>>> f=4 tf=1.6  seed=2  rmse=0.1076  var=0.198  phi_min=1.20e-02  (4377s)
+>>> f=4 tf=2    seed=2  rmse=0.1141  var=0.154  phi_min=1.31e-02  (4431s)
+checkpoint: f=4 seed=2 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/freq_tf_grid_results.npz
+  teacher f=4 seed=3: fit mse 2.61e-05
+>>> f=4 tf=0.4  seed=3  rmse=0.0875  var=0.335  phi_min=7.58e-03  (4478s)
+>>> f=4 tf=0.8  seed=3  rmse=0.0457  var=0.119  phi_min=2.57e-03  (4523s)
+>>> f=4 tf=1.2  seed=3  rmse=0.0590  var=0.246  phi_min=3.91e-03  (4570s)
+>>> f=4 tf=1.6  seed=3  rmse=0.0960  var=0.565  phi_min=9.36e-03  (4621s)
+>>> f=4 tf=2    seed=3  rmse=0.0910  var=0.478  phi_min=9.34e-03  (4675s)
+checkpoint: f=4 seed=3 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/freq_tf_grid_results.npz
+  teacher f=4 seed=4: fit mse 3.26e-05
+>>> f=4 tf=0.4  seed=4  rmse=0.1235  var=1.019  phi_min=2.08e-02  (4722s)
+>>> f=4 tf=0.8  seed=4  rmse=0.1594  var=0.343  phi_min=2.58e-02  (4768s)
+>>> f=4 tf=1.2  seed=4  rmse=0.1821  var=0.980  phi_min=2.87e-02  (4815s)
+>>> f=4 tf=1.6  seed=4  rmse=0.1434  var=0.892  phi_min=2.05e-02  (4865s)
+>>> f=4 tf=2    seed=4  rmse=0.1134  var=1.041  phi_min=1.61e-02  (4919s)
+checkpoint: f=4 seed=4 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/freq_tf_grid_results.npz
+  teacher f=5 seed=0: fit mse 1.50e-04
+>>> f=5 tf=0.4  seed=0  rmse=0.1497  var=2.957  phi_min=3.59e-02  (4966s)
+>>> f=5 tf=0.8  seed=0  rmse=0.1912  var=4.762  phi_min=4.54e-02  (5011s)
+>>> f=5 tf=1.2  seed=0  rmse=0.1933  var=2.193  phi_min=4.32e-02  (5060s)
+>>> f=5 tf=1.6  seed=0  rmse=0.2338  var=2.015  phi_min=5.79e-02  (5112s)
+>>> f=5 tf=2    seed=0  rmse=0.2942  var=2.512  phi_min=8.77e-02  (5166s)
+checkpoint: f=5 seed=0 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/freq_tf_grid_results.npz
+  teacher f=5 seed=1: fit mse 6.48e-04
+>>> f=5 tf=0.4  seed=1  rmse=0.2264  var=1.414  phi_min=5.65e-02  (5213s)
+>>> f=5 tf=0.8  seed=1  rmse=0.2900  var=0.967  phi_min=7.74e-02  (5257s)
+>>> f=5 tf=1.2  seed=1  rmse=0.3497  var=0.417  phi_min=1.21e-01  (5305s)
+>>> f=5 tf=1.6  seed=1  rmse=0.3362  var=0.732  phi_min=1.09e-01  (5357s)
+>>> f=5 tf=2    seed=1  rmse=0.3291  var=0.789  phi_min=1.05e-01  (5412s)
+checkpoint: f=5 seed=1 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/freq_tf_grid_results.npz
+  teacher f=5 seed=2: fit mse 3.15e-04
+>>> f=5 tf=0.4  seed=2  rmse=0.1016  var=0.430  phi_min=1.20e-02  (5459s)
+>>> f=5 tf=0.8  seed=2  rmse=0.0905  var=0.232  phi_min=9.93e-03  (5505s)
+>>> f=5 tf=1.2  seed=2  rmse=0.1295  var=1.166  phi_min=2.66e-02  (5553s)
+>>> f=5 tf=1.6  seed=2  rmse=0.1089  var=0.696  phi_min=1.52e-02  (5605s)
+>>> f=5 tf=2    seed=2  rmse=0.1799  var=1.902  phi_min=4.01e-02  (5658s)
+checkpoint: f=5 seed=2 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/freq_tf_grid_results.npz
+  teacher f=5 seed=3: fit mse 1.51e-04
+>>> f=5 tf=0.4  seed=3  rmse=0.1738  var=0.263  phi_min=3.19e-02  (5703s)
+>>> f=5 tf=0.8  seed=3  rmse=0.1487  var=0.214  phi_min=2.23e-02  (5748s)
+>>> f=5 tf=1.2  seed=3  rmse=0.1228  var=0.505  phi_min=1.76e-02  (5795s)
+>>> f=5 tf=1.6  seed=3  rmse=0.1308  var=0.666  phi_min=2.20e-02  (5845s)
+>>> f=5 tf=2    seed=3  rmse=0.2225  var=1.863  phi_min=6.70e-02  (5899s)
+checkpoint: f=5 seed=3 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/freq_tf_grid_results.npz
+  teacher f=5 seed=4: fit mse 1.15e-05
+>>> f=5 tf=0.4  seed=4  rmse=0.1065  var=0.567  phi_min=1.52e-02  (5944s)
+>>> f=5 tf=0.8  seed=4  rmse=0.0921  var=0.201  phi_min=8.98e-03  (5988s)
+>>> f=5 tf=1.2  seed=4  rmse=0.0754  var=0.235  phi_min=7.14e-03  (6037s)
+>>> f=5 tf=1.6  seed=4  rmse=0.0890  var=0.489  phi_min=9.81e-03  (6088s)
+>>> f=5 tf=2    seed=4  rmse=0.1566  var=2.266  phi_min=2.75e-02  (6143s)
+checkpoint: f=5 seed=4 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/freq_tf_grid_results.npz
+
+=== best RMSE per (frequency, clock) ===
+        tf=0.4     tf=0.8     tf=1.2     tf=1.6     tf=2       
+cos1pi  0.0049     0.0066     0.0073     0.0090     0.0089     
+cos2pi  0.0140     0.0185     0.0215     0.0236     0.0243     
+cos3pi  0.0396     0.0423     0.0463     0.0445     0.0415     
+cos4pi  0.0875     0.0457     0.0590     0.0960     0.0816     
+cos5pi  0.1016     0.0905     0.0754     0.0890     0.1566     
+saved /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/../../Graphs/gd_graphs/fig_freq_tf_grid.png
