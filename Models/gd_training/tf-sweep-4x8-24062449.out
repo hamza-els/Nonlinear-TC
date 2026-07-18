@@ -1,0 +1,65 @@
+cuda: True Tesla V100-SXM2-32GB
+config: activation=thermo WIDTH=8 DEPTH=4 tfs=[0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0] seeds=[0, 1, 2, 3, 4] K=250 M_eval=256 device=cuda (45 students)
+>>> tf=0.2  seed=0  rmse=0.0337  var=0.122  (29s)
+>>> tf=0.3  seed=0  rmse=0.0208  var=0.066  (39s)
+>>> tf=0.4  seed=0  rmse=0.0167  var=0.039  (49s)
+>>> tf=0.5  seed=0  rmse=0.0175  var=0.033  (59s)
+>>> tf=0.6  seed=0  rmse=0.0213  var=0.037  (70s)
+>>> tf=0.7  seed=0  rmse=0.0266  var=0.049  (80s)
+>>> tf=0.8  seed=0  rmse=0.0317  var=0.090  (91s)
+>>> tf=0.9  seed=0  rmse=0.0384  var=0.136  (102s)
+>>> tf=1    seed=0  rmse=0.0522  var=0.099  (113s)
+checkpoint: seed 0 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/tf_sweep_4x8_results.npz
+>>> tf=0.2  seed=1  rmse=0.0302  var=0.104  (139s)
+>>> tf=0.3  seed=1  rmse=0.0207  var=0.068  (149s)
+>>> tf=0.4  seed=1  rmse=0.0199  var=0.052  (161s)
+>>> tf=0.5  seed=1  rmse=0.0186  var=0.039  (173s)
+>>> tf=0.6  seed=1  rmse=0.0179  var=0.035  (186s)
+>>> tf=0.7  seed=1  rmse=0.0185  var=0.034  (198s)
+>>> tf=0.8  seed=1  rmse=0.0216  var=0.037  (209s)
+>>> tf=0.9  seed=1  rmse=0.0251  var=0.044  (220s)
+>>> tf=1    seed=1  rmse=0.0253  var=0.054  (234s)
+checkpoint: seed 1 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/tf_sweep_4x8_results.npz
+>>> tf=0.2  seed=2  rmse=0.0388  var=0.088  (262s)
+>>> tf=0.3  seed=2  rmse=0.0337  var=0.060  (272s)
+>>> tf=0.4  seed=2  rmse=0.0319  var=0.123  (282s)
+>>> tf=0.5  seed=2  rmse=0.0359  var=0.116  (292s)
+>>> tf=0.6  seed=2  rmse=0.0229  var=0.060  (303s)
+>>> tf=0.7  seed=2  rmse=0.0204  var=0.067  (316s)
+>>> tf=0.8  seed=2  rmse=0.0239  var=0.088  (329s)
+>>> tf=0.9  seed=2  rmse=0.0277  var=0.116  (341s)
+>>> tf=1    seed=2  rmse=0.0300  var=0.162  (352s)
+checkpoint: seed 2 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/tf_sweep_4x8_results.npz
+>>> tf=0.2  seed=3  rmse=0.0373  var=0.077  (381s)
+>>> tf=0.3  seed=3  rmse=0.0323  var=0.081  (394s)
+>>> tf=0.4  seed=3  rmse=0.0265  var=0.074  (406s)
+>>> tf=0.5  seed=3  rmse=0.0282  var=0.073  (418s)
+>>> tf=0.6  seed=3  rmse=0.0347  var=0.090  (428s)
+>>> tf=0.7  seed=3  rmse=0.0399  var=0.082  (438s)
+>>> tf=0.8  seed=3  rmse=0.0400  var=0.091  (449s)
+>>> tf=0.9  seed=3  rmse=0.0428  var=0.103  (461s)
+>>> tf=1    seed=3  rmse=0.0430  var=0.176  (475s)
+checkpoint: seed 3 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/tf_sweep_4x8_results.npz
+>>> tf=0.2  seed=4  rmse=0.1050  var=1.044  (502s)
+>>> tf=0.3  seed=4  rmse=0.0769  var=0.511  (512s)
+>>> tf=0.4  seed=4  rmse=0.0736  var=0.593  (522s)
+>>> tf=0.5  seed=4  rmse=0.0670  var=0.681  (532s)
+>>> tf=0.6  seed=4  rmse=0.0555  var=0.468  (544s)
+>>> tf=0.7  seed=4  rmse=0.0316  var=0.178  (557s)
+>>> tf=0.8  seed=4  rmse=0.0336  var=0.192  (570s)
+>>> tf=0.9  seed=4  rmse=0.0364  var=0.221  (582s)
+>>> tf=1    seed=4  rmse=0.0324  var=0.191  (593s)
+checkpoint: seed 4 -> /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/runs/tf_sweep_4x8_results.npz
+
+=== RMSE per tf (median [best]) ===
+  tf=0.2   median 0.0373  best 0.0302
+  tf=0.3   median 0.0323  best 0.0207
+  tf=0.4   median 0.0265  best 0.0167
+  tf=0.5   median 0.0282  best 0.0175
+  tf=0.6   median 0.0229  best 0.0179
+  tf=0.7   median 0.0266  best 0.0185
+  tf=0.8   median 0.0317  best 0.0216
+  tf=0.9   median 0.0364  best 0.0251
+  tf=1     median 0.0324  best 0.0253
+optimal tf (median): 0.6  (median RMSE 0.0229)
+saved /global/home/users/helsayed/Nonlinear-TC/Models/gd_training/../../Graphs/gd_graphs/fig_tf_sweep_4x8.png

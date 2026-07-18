@@ -1,0 +1,23 @@
+cuda: True Tesla V100-SXM2-32GB
+config: seed=42 gens=200 var_weight=0.01 act=thermo | P=50 elites=5 K=250 M_FIT=1000 M_CHUNK=500 CRN=True MUT=0.02 | tf=0.4 beta=10 dt=0.001
+GD warm start from runs/weights/CHAMPION_thermo_2x32.pt: rmse 0.0093  bias2 8.63e-05  var 0.014
+  gen    0  fitness 2.417e-04  bias 4.142e-05  var 0.020    52.29 s/gen  (53s total)
+  gen   10  fitness 1.522e-04  bias 3.005e-05  var 0.012    52.31 s/gen  (576s total)
+  gen   20  fitness 1.171e-04  bias 3.050e-05  var 0.009    52.32 s/gen  (1099s total)
+  gen   30  fitness 9.681e-05  bias 2.697e-05  var 0.007    52.32 s/gen  (1622s total)
+  gen   40  fitness 8.523e-05  bias 2.623e-05  var 0.006    52.32 s/gen  (2146s total)
+  gen   50  fitness 7.895e-05  bias 2.762e-05  var 0.005    52.32 s/gen  (2669s total)
+  gen   60  fitness 7.623e-05  bias 2.655e-05  var 0.005    52.32 s/gen  (3192s total)
+  gen   70  fitness 7.636e-05  bias 2.701e-05  var 0.005    52.32 s/gen  (3715s total)
+  gen   80  fitness 7.436e-05  bias 2.541e-05  var 0.005    52.32 s/gen  (4239s total)
+  gen   90  fitness 7.145e-05  bias 2.445e-05  var 0.005    52.32 s/gen  (4762s total)
+  gen  100  fitness 6.952e-05  bias 2.350e-05  var 0.005    52.32 s/gen  (5285s total)
+  gen  110  fitness 7.022e-05  bias 2.451e-05  var 0.005    52.32 s/gen  (5808s total)
+  gen  120  fitness 6.939e-05  bias 2.446e-05  var 0.004    52.32 s/gen  (6332s total)
+  gen  130  fitness 6.778e-05  bias 2.338e-05  var 0.004    52.32 s/gen  (6855s total)
+  gen  140  fitness 6.565e-05  bias 2.201e-05  var 0.004    52.32 s/gen  (7378s total)
+  gen  150  fitness 6.462e-05  bias 2.278e-05  var 0.004    52.32 s/gen  (7901s total)
+  gen  160  fitness 6.467e-05  bias 2.370e-05  var 0.004    52.32 s/gen  (8424s total)
+  gen  170  fitness 6.225e-05  bias 2.109e-05  var 0.004    52.32 s/gen  (8948s total)
+  gen  180  fitness 6.161e-05  bias 2.149e-05  var 0.004    52.32 s/gen  (9471s total)
+  gen  190  fitness 6.091e-05  bias 2.117e-05  var 0.004    52.32 s/gen  (9994s total)
