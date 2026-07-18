@@ -5,8 +5,8 @@ deterministic feed-forward neural network trained by gradient descent to
 approximate a target function.  Here the target is y0(z) = cos(2 pi z) on
 z in [0, 1] (a regression task) rather than MNIST classification.
 
-The network has WIDTH=4, DEPTH=2 (two hidden layers of four tanh units),
-giving HIDDEN = 8 hidden neurons plus a single linear output neuron.  The
+The network has WIDTH=8, DEPTH=4 (four hidden layers of eight tanh units),
+giving HIDDEN = 32 hidden neurons plus a single linear output neuron.  The
 per-neuron activations A_i (hidden + output) are the targets that the
 thermodynamic student is later trained to reproduce (see thermo_student.py).
 A shallow teacher keeps the target activations computationally "early"
@@ -14,12 +14,20 @@ functions of z, which the student's finite-time dynamics can reach (deep-layer
 activations were the hardest to mimic -- see the per-node deviation figure).
 """
 
+import os
+
 import torch
 import torch.nn as nn
 
 # --- Architecture ---------------------------------------------------------
-WIDTH = 32
-DEPTH = 2                      # number of hidden layers
+# WIDTH/DEPTH default to the 2x32 teacher, but a job may select a different
+# shape (e.g. the deep 4x8) by exporting TC_WIDTH / TC_DEPTH BEFORE python
+# starts -- they are read once here at import, so every module that does
+# `from digital_net import N, WIDTH, ...` sees the chosen shape.  This lets the
+# 4x8 tf-sweep and the 2x32 champion fine-tunes run as separate cluster jobs
+# off the same checked-in file without editing it between submissions.
+WIDTH = int(os.environ.get("TC_WIDTH", 32))
+DEPTH = int(os.environ.get("TC_DEPTH", 2))    # number of hidden layers
 HIDDEN = WIDTH * DEPTH         # 32 hidden neurons total
 N_OUT = 8                      # tanh output neurons, linearly combined to y
 N = HIDDEN + N_OUT             # total non-input degrees of freedom
@@ -62,14 +70,19 @@ TARGET_FREQ = 2.0
 #
 #     sigma(x) = ACT_A * (x^2/(x^2+ACT_C)) * cbrt(x) + tanh(x)
 #
-# In that form it performs on par with tanh (median 0.0130 vs 0.0157 over
-# seeds 0-2: 1 win, 1 tie, 1 loss -- within seed noise).  Why no gain: the
-# exact-inverse guide bias b0 = 2A + 4A^3 already makes the guide hit ANY
-# target A exactly, so the activation mismatch the papers describe is already
-# compensated; the teacher's activation only sets the shape of the feature
-# basis, and tanh features are just as good a basis here.
+# In that form its MEDIAN accuracy is on par with tanh (the exact-inverse guide
+# bias b0 = 2A + 4A^3 already hits any target A exactly, so the activation
+# mismatch the papers describe is already compensated).  But across seeds it is
+# the SAFER choice, which is why it is now the default (2026-07-17):
+#   - tighter trackability distribution (node-dev 0.0235 +/- 0.001 vs tanh
+#     0.0364 +/- 0.014 over 5 seeds -- 14x less spread);
+#   - far fewer catastrophic seeds (best-of-10 worst case: thermo 0.021 vs
+#     tanh 0.057);
+#   - lower single-shot variance, and it produced the fine-tune records
+#     (thermo GA reg 0.0062 / true bias 0.0041 vs tanh 0.0077 / 0.0036).
+# tanh remains selectable via set_activation("tanh").
 ACT_A, ACT_C = 0.5617, 13.53
-ACTIVATION = "tanh"            # "tanh" | "thermo" -- tanh is the incumbent
+ACTIVATION = "thermo"          # "tanh" | "thermo" -- thermo is the default
 
 
 def thermo_activation(x):

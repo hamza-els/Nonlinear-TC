@@ -18,7 +18,7 @@ Design choices:
   - Elites survive unmutated, so the GD baseline can never be lost.
 
 Usage:
-    python experiments/experiment_ga_finetune.py [seed] [generations] [var_weight] [activation]
+    python experiments/experiment_ga_finetune.py [seed] [generations] [var_weight] [activation] [warm.pt]
 """
 
 import os
@@ -45,6 +45,9 @@ GENS = int(sys.argv[2]) if len(sys.argv) > 2 else 200
 VAR_WEIGHT = float(sys.argv[3]) if len(sys.argv) > 3 else 0.0
 # 4th arg: teacher activation for the GD warm start ("tanh" | "thermo").
 ACT = sys.argv[4] if len(sys.argv) > 4 else "tanh"
+# 5th arg (optional): warm-start from a saved student .pt (portable across
+# platforms, unlike a seed) instead of retraining a GD student via run(seed).
+WARM = sys.argv[5] if len(sys.argv) > 5 else None
 
 P = 50          # population size
 N_ELITE = 5
@@ -137,9 +140,17 @@ def main():
 
     # --- GD warm start -------------------------------------------------------
     torch.manual_seed(SEED)
-    student, teacher, stats = run(seed=SEED)
-    print(f"GD baseline (seed {SEED}): rmse {stats['rmse']:.4f}  "
-          f"bias2 {stats['bias2']:.2e}  var {stats['var']:.3f}")
+    if WARM:
+        from train_gd import load_student
+        student, _ = load_student(WARM, device=device)
+        stats = evaluate(student, M=256, seed=SEED, device=device)
+        teacher = None
+        print(f"GD warm start from {WARM}: rmse {stats['rmse']:.4f}  "
+              f"bias2 {stats['bias2']:.2e}  var {stats['var']:.3f}")
+    else:
+        student, teacher, stats = run(seed=SEED)
+        print(f"GD baseline (seed {SEED}): rmse {stats['rmse']:.4f}  "
+              f"bias2 {stats['bias2']:.2e}  var {stats['var']:.3f}")
 
     theta0 = {"b": student.b.detach(), "W": student.W.detach(),
               "Jhh": sym0(student.Jhh_raw.detach()),
@@ -215,6 +226,8 @@ def main():
              crn=CRN, P=P, n_elite=N_ELITE, K=K, m_fit=M_FIT,
              m_chunk=M_CHUNK, mut=MUT, activation=ACT)
     try:
+        if teacher is None:
+            raise RuntimeError("no teacher when warm-starting from a file")
         from plots.plot_output_samples import plot_output
         plot_output(tuned, teacher,
                     out_path=f"{GDIR}/fig_teacher_gafinetune_{tag}.png",

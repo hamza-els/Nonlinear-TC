@@ -1,0 +1,68 @@
+config: activation=thermo patterns=['equal', 'long_tight_long', 'tight_longer_long'] tfs=[0.4, 0.6, 0.8] seeds=[0, 1, 2, 3] device=cuda
+    baseline tf=0.4  seed=0 rmse=0.0184
+>>> equal             tf=0.4  seed=0 rmse=0.1072 var=1.434 kills@[0.10, 0.20, 0.30]  (59s)
+>>> long_tight_long   tf=0.4  seed=0 rmse=0.0923 var=0.989 kills@[0.15, 0.20, 0.25]  (86s)
+>>> tight_longer_long tf=0.4  seed=0 rmse=0.0646 var=0.428 kills@[0.04, 0.12, 0.24]  (114s)
+    baseline tf=0.6  seed=0 rmse=0.0215
+>>> equal             tf=0.6  seed=0 rmse=0.0485 var=0.363 kills@[0.15, 0.30, 0.45]  (177s)
+>>> long_tight_long   tf=0.6  seed=0 rmse=0.0379 var=0.290 kills@[0.22, 0.30, 0.38]  (212s)
+>>> tight_longer_long tf=0.6  seed=0 rmse=0.0279 var=0.104 kills@[0.06, 0.18, 0.36]  (247s)
+    baseline tf=0.8  seed=0 rmse=0.0314
+>>> equal             tf=0.8  seed=0 rmse=0.0257 var=0.049 kills@[0.20, 0.40, 0.60]  (321s)
+>>> long_tight_long   tf=0.8  seed=0 rmse=0.0235 var=0.051 kills@[0.30, 0.40, 0.50]  (354s)
+>>> tight_longer_long tf=0.8  seed=0 rmse=0.0229 var=0.049 kills@[0.08, 0.24, 0.48]  (387s)
+checkpoint: seed 0 -> C:\Nonlinear-TC-Project\Models\gd_training\runs\kill_patterns_results.npz
+    baseline tf=0.4  seed=1 rmse=0.0213
+>>> equal             tf=0.4  seed=1 rmse=0.0270 var=0.082 kills@[0.10, 0.20, 0.30]  (447s)
+>>> long_tight_long   tf=0.4  seed=1 rmse=0.0255 var=0.076 kills@[0.15, 0.20, 0.25]  (474s)
+>>> tight_longer_long tf=0.4  seed=1 rmse=0.0252 var=0.077 kills@[0.04, 0.12, 0.24]  (501s)
+    baseline tf=0.6  seed=1 rmse=0.0184
+>>> equal             tf=0.6  seed=1 rmse=0.0244 var=0.066 kills@[0.15, 0.30, 0.45]  (563s)
+>>> long_tight_long   tf=0.6  seed=1 rmse=0.0229 var=0.052 kills@[0.22, 0.30, 0.38]  (598s)
+>>> tight_longer_long tf=0.6  seed=1 rmse=0.0217 var=0.044 kills@[0.06, 0.18, 0.36]  (635s)
+    baseline tf=0.8  seed=1 rmse=0.0220
+>>> equal             tf=0.8  seed=1 rmse=0.0241 var=0.085 kills@[0.20, 0.40, 0.60]  (702s)
+>>> long_tight_long   tf=0.8  seed=1 rmse=0.0237 var=0.069 kills@[0.30, 0.40, 0.50]  (724s)
+>>> tight_longer_long tf=0.8  seed=1 rmse=0.0176 var=0.038 kills@[0.08, 0.24, 0.48]  (745s)
+checkpoint: seed 1 -> C:\Nonlinear-TC-Project\Models\gd_training\runs\kill_patterns_results.npz
+    baseline tf=0.4  seed=2 rmse=0.0384
+>>> equal             tf=0.4  seed=2 rmse=0.0212 var=0.076 kills@[0.10, 0.20, 0.30]  (781s)
+>>> long_tight_long   tf=0.4  seed=2 rmse=0.0239 var=0.061 kills@[0.15, 0.20, 0.25]  (795s)
+>>> tight_longer_long tf=0.4  seed=2 rmse=0.0238 var=0.076 kills@[0.04, 0.12, 0.24]  (808s)
+    baseline tf=0.6  seed=2 rmse=0.0236
+>>> equal             tf=0.6  seed=2 rmse=0.0205 var=0.062 kills@[0.15, 0.30, 0.45]  (840s)
+>>> long_tight_long   tf=0.6  seed=2 rmse=0.0230 var=0.099 kills@[0.22, 0.30, 0.38]  (857s)
+>>> tight_longer_long tf=0.6  seed=2 rmse=0.0243 var=0.103 kills@[0.06, 0.18, 0.36]  (874s)
+    baseline tf=0.8  seed=2 rmse=0.0247
+>>> equal             tf=0.8  seed=2 rmse=0.0227 var=0.070 kills@[0.20, 0.40, 0.60]  (915s)
+>>> long_tight_long   tf=0.8  seed=2 rmse=0.0323 var=0.087 kills@[0.30, 0.40, 0.50]  (936s)
+>>> tight_longer_long tf=0.8  seed=2 rmse=0.0317 var=0.097 kills@[0.08, 0.24, 0.48]  (958s)
+checkpoint: seed 2 -> C:\Nonlinear-TC-Project\Models\gd_training\runs\kill_patterns_results.npz
+    baseline tf=0.4  seed=3 rmse=0.0264
+>>> equal             tf=0.4  seed=3 rmse=0.0223 var=0.071 kills@[0.10, 0.20, 0.30]  (995s)
+>>> long_tight_long   tf=0.4  seed=3 rmse=0.0237 var=0.073 kills@[0.15, 0.20, 0.25]  (1009s)
+>>> tight_longer_long tf=0.4  seed=3 rmse=0.0214 var=0.067 kills@[0.04, 0.12, 0.24]  (1023s)
+    baseline tf=0.6  seed=3 rmse=0.0318
+>>> equal             tf=0.6  seed=3 rmse=0.0230 var=0.055 kills@[0.15, 0.30, 0.45]  (1057s)
+>>> long_tight_long   tf=0.6  seed=3 rmse=0.0239 var=0.058 kills@[0.22, 0.30, 0.38]  (1075s)
+>>> tight_longer_long tf=0.6  seed=3 rmse=0.0213 var=0.052 kills@[0.06, 0.18, 0.36]  (1093s)
+    baseline tf=0.8  seed=3 rmse=0.0410
+>>> equal             tf=0.8  seed=3 rmse=0.0211 var=0.049 kills@[0.20, 0.40, 0.60]  (1133s)
+>>> long_tight_long   tf=0.8  seed=3 rmse=0.0212 var=0.060 kills@[0.30, 0.40, 0.50]  (1156s)
+>>> tight_longer_long tf=0.8  seed=3 rmse=0.0214 var=0.034 kills@[0.08, 0.24, 0.48]  (1178s)
+checkpoint: seed 3 -> C:\Nonlinear-TC-Project\Models\gd_training\runs\kill_patterns_results.npz
+
+=== median RMSE (staged / baseline) per pattern x tf ===
+  tf=0.4:  baseline 0.0239
+     equal             0.0246  (1.03x baseline)
+     long_tight_long   0.0247  (1.04x baseline)
+     tight_longer_long 0.0245  (1.03x baseline)
+  tf=0.6:  baseline 0.0225
+     equal             0.0237  (1.05x baseline)
+     long_tight_long   0.0235  (1.04x baseline)
+     tight_longer_long 0.0230  (1.02x baseline)
+  tf=0.8:  baseline 0.0280
+     equal             0.0234  (0.83x baseline)
+     long_tight_long   0.0236  (0.84x baseline)
+     tight_longer_long 0.0222  (0.79x baseline)
+saved C:\Nonlinear-TC-Project\Models\gd_training\..\..\Graphs\gd_graphs\fig_kill_patterns.png
