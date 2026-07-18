@@ -20,3 +20,9 @@ GD warm start from runs/weights/CHAMPION_thermo_2x32.pt: rmse 0.0093  bias2 8.63
   gen  160  fitness 3.634e-03  bias 1.440e-04  var 0.003    52.59 s/gen  (8468s total)
   gen  170  fitness 3.608e-03  bias 1.400e-04  var 0.003    52.59 s/gen  (8994s total)
   gen  180  fitness 3.541e-03  bias 1.320e-04  var 0.003    52.59 s/gen  (9520s total)
+  gen  190  fitness 3.518e-03  bias 1.371e-04  var 0.003    52.59 s/gen  (10046s total)
+  gen  199  fitness 3.498e-03  bias 1.554e-04  var 0.003    52.59 s/gen  (10519s total)
+
+GA-finetuned:  rmse 0.0131  bias2 1.72e-04  var 0.004
+GD baseline:   rmse 0.0093  bias2 8.63e-05  var 0.014
+figure skipped (RuntimeError: no teacher when warm-starting from a file); regenerate locally from the saved npz
