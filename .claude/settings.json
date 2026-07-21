@@ -3,7 +3,9 @@
     "allow": [
       "Bash(python -c ' *)",
       "Bash(python thermo_student.py)",
-      "Bash(python -u test_om_recovery.py)"
+      "Bash(python -u test_om_recovery.py)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('experiments/experiment_ga_scratch.py'\\).read\\(\\)\\); print\\('parse OK'\\)\")",
+      "Bash(TC_WIDTH=8 TC_DEPTH=4 python -u -)"
     ]
   }
 }
