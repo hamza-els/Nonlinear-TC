@@ -1,0 +1,7 @@
+# MNIST dataset (~64 MB) -- re-downloads via torchvision on any machine
+data/
+
+# training artifacts (student runs, old teachers), EXCEPT the locked thermo
+# teacher that the tf-scan job needs on the cluster
+runs/*.pt
+!runs/teacher_thermo.pt
