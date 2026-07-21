@@ -52,8 +52,11 @@ WARM = sys.argv[5] if len(sys.argv) > 5 else None
 P = 50          # population size
 N_ELITE = 5
 MUT = 2e-2      # base mutation scale, divided by sqrt(fan-in) per tensor
-K = 250         # z-grid for fitness (paper convention, Eq. S14)
-M_FIT = 1000    # samples per (candidate, z) during fitness evaluation
+K = 100         # z-grid for fitness (cut from 250 to speed up long GA runs;
+                # still resolves the smooth cos target -- see M_FIT note)
+M_FIT = 500     # samples per (candidate, z) during fitness evaluation (cut from
+                # 1000: ~5x faster overall with K, at a sqrt(2) higher fitness
+                # noise floor that CRN largely cancels in selection)
 # Common random numbers: share one noise draw across all P candidates per
 # step, so selection compares parameters rather than luck.  Worth it when the
 # fitness noise floor Var/M_FIT is comparable to the bias differences being
@@ -64,6 +67,10 @@ CRN = True
 # tensor is P x K x M_CHUNK x N); fitness statistics are accumulated exactly
 # across chunks, so results are independent of the chunk size.
 M_CHUNK = 500
+# At K=100/M_FIT=500 a generation is ~10 s, so 6000 gens (~17 h) fits one 24 h
+# wall.  The population is still checkpointed every CKPT_EVERY gens so a run that
+# is pre-empted or over-runs its wall resumes from it (see main()).
+CKPT_EVERY = 100
 
 FANIN = {"b": 1.0, "W": float(N_IN), "Jhh": float(HIDDEN),
          "Jho": (HIDDEN + N_OUT) / 2.0, "Joo": float(N_OUT)}
@@ -177,10 +184,51 @@ def main():
     cands = [dict(theta0) for _ in range(N_ELITE)] + \
             [mutate(theta0) for _ in range(P - N_ELITE)]
     pop = stack(cands)
+    # a safe default so `elites` exists even if the loop below never runs
+    elites = [{k: pop[k][i].clone() for k in pop} for i in range(N_ELITE)]
 
+    runs_dir = os.path.join(_GD_ROOT, "runs")
+    os.makedirs(runs_dir, exist_ok=True)
+    tag = (f"{ACT}_seed{SEED}_g{GENS}_vw{VAR_WEIGHT:g}_M{M_FIT}_"
+           f"{'crn' if CRN else 'nocrn'}")
+    result_path = os.path.join(runs_dir, f"run_ga_finetune_{tag}.npz")
+    ckpt_path = os.path.join(runs_dir, f"ckpt_ga_finetune_{tag}.pt")
+
+    def save_result(champ):
+        """Rebuild, readout-fit and evaluate the current best; write the npz."""
+        tuned = ThermoStudent().to(device)
+        with torch.no_grad():
+            tuned.b.copy_(champ["b"]); tuned.W.copy_(champ["W"])
+            tuned.Jhh_raw.copy_(champ["Jhh"])   # already symmetric; sym0 no-op
+            tuned.Jho.copy_(champ["Jho"]); tuned.Joo_raw.copy_(champ["Joo"])
+        tuned.fit_readout(z, y0, M=256, seed=SEED + 1)
+        ev = evaluate(tuned, M=256, seed=SEED + 7, device=device)
+        np.savez(result_path,
+                 **{f"p_{k}": v.cpu().numpy() for k, v in champ.items()},
+                 history=np.asarray(history), seed=SEED, gens=GENS,
+                 var_weight=VAR_WEIGHT, tf=TF, beta=BETA, crn=CRN, P=P,
+                 n_elite=N_ELITE, K=K, m_fit=M_FIT, m_chunk=M_CHUNK, mut=MUT,
+                 activation=ACT)
+        return tuned, ev
+
+    # --- resume from a checkpoint if one exists ------------------------------
+    # At K=100/M_FIT=500 a 6000-gen run is ~17 h (fits one 24 h wall), but the
+    # population is still checkpointed every CKPT_EVERY gens so a pre-empted or
+    # over-running job resumes from the last checkpoint on resubmission.  The
+    # mutation RNG restarts on resume, so a resumed run is not bit-identical to
+    # an uninterrupted one -- fine for a stochastic GA.  The checkpoint is
+    # deleted on clean completion.
     history = []
-    t_last, n_last = time.time(), 0
-    for n in range(GENS):
+    start = 0
+    if os.path.exists(ckpt_path):
+        ck = torch.load(ckpt_path, map_location=device)
+        pop = {k: v.to(device) for k, v in ck["pop"].items()}
+        history = list(ck["history"])
+        start = int(ck["gen"])
+        print(f"resuming from {ckpt_path}: gen {start}/{GENS}", flush=True)
+
+    t_last, n_last = time.time(), start
+    for n in range(start, GENS):
         fit, bias, var = population_fitness(pop, phi, y0, SEED + 2000 + n,
                                             device)
         order = torch.argsort(fit)
@@ -198,33 +246,21 @@ def main():
         cands = [dict(e) for e in elites] + \
                 [mutate(elites[i % N_ELITE]) for i in range(P - N_ELITE)]
         pop = stack(cands)
+        if (n + 1) % CKPT_EVERY == 0 and n + 1 < GENS:
+            torch.save({"pop": {k: v.cpu() for k, v in pop.items()},
+                        "gen": n + 1, "history": history}, ckpt_path)
+            save_result(elites[0])       # partial best, usable if wall-killed
+            print(f"  checkpoint @gen {n+1} -> {ckpt_path}", flush=True)
 
-    # --- independent evaluation of the GA champion ---------------------------
+    # --- final evaluation of the GA champion ---------------------------------
     champ = elites[0]
-    tuned = ThermoStudent().to(device)
-    with torch.no_grad():
-        tuned.b.copy_(champ["b"])
-        tuned.W.copy_(champ["W"])
-        tuned.Jhh_raw.copy_(champ["Jhh"])   # already symmetric, sym0 is no-op
-        tuned.Jho.copy_(champ["Jho"])
-        tuned.Joo_raw.copy_(champ["Joo"])
-    tuned.fit_readout(z, y0, M=256, seed=SEED + 1)
-    ev = evaluate(tuned, M=256, seed=SEED + 7, device=device)
+    tuned, ev = save_result(champ)
+    if os.path.exists(ckpt_path):
+        os.remove(ckpt_path)             # clean completion: drop the checkpoint
     print(f"\nGA-finetuned:  rmse {ev['rmse']:.4f}  bias2 {ev['bias2']:.2e}  "
           f"var {ev['var']:.3f}")
     print(f"GD baseline:   rmse {stats['rmse']:.4f}  "
           f"bias2 {stats['bias2']:.2e}  var {stats['var']:.3f}")
-
-    runs_dir = os.path.join(_GD_ROOT, "runs")
-    os.makedirs(runs_dir, exist_ok=True)
-    tag = (f"{ACT}_seed{SEED}_g{GENS}_vw{VAR_WEIGHT:g}_M{M_FIT}_"
-           f"{'crn' if CRN else 'nocrn'}")
-    np.savez(os.path.join(runs_dir, f"run_ga_finetune_{tag}.npz"),
-             **{f"p_{k}": v.cpu().numpy() for k, v in champ.items()},
-             history=np.asarray(history), seed=SEED, gens=GENS,
-             var_weight=VAR_WEIGHT, tf=TF, beta=BETA,
-             crn=CRN, P=P, n_elite=N_ELITE, K=K, m_fit=M_FIT,
-             m_chunk=M_CHUNK, mut=MUT, activation=ACT)
     try:
         if teacher is None:
             raise RuntimeError("no teacher when warm-starting from a file")
