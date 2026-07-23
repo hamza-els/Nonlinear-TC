@@ -81,36 +81,48 @@ def load_mnist(device="cpu"):
 # via the stable identity (x^2/(x^2+c))*cbrt(x) == sign(x)*|x|^(7/3)/(x^2+c) so
 # the gradient stays finite at x=0.  Unbounded, so hidden activations can exceed
 # +/-1 (unlike tanh) -- closer to the student neuron's own response.
+# Default (inherited from the cosine work, beta=10/tf=0.40).  For MNIST these
+# are refit per tf to the real isolated neuron at beta=1 -- see
+# thermo_activation_fit.fit_thermo_activation -- and passed into TeacherMLP.
 ACT_A, ACT_C = 0.5617, 13.53
 
 
-def thermo_activation(x):
-    return (ACT_A * torch.sign(x) * x.abs().pow(7.0 / 3.0) / (x ** 2 + ACT_C)
+def thermo_activation(x, act_a=ACT_A, act_c=ACT_C):
+    return (act_a * torch.sign(x) * x.abs().pow(7.0 / 3.0) / (x ** 2 + act_c)
             + torch.tanh(x))
 
 
-def _hidden_act(x, kind):
+def _hidden_act(x, kind, act_a=ACT_A, act_c=ACT_C):
     if kind == "tanh":
         return torch.tanh(x)
     if kind == "thermo":
-        return thermo_activation(x)
+        return thermo_activation(x, act_a, act_c)
     raise ValueError(f"unknown activation {kind!r}")
 
 
 class TeacherMLP(nn.Module):
-    """784-32-32-10, softmax output; hidden activation "tanh" or "thermo"."""
+    """784-32-32-10, softmax output; hidden activation "tanh" or "thermo".
 
-    def __init__(self, activation="tanh"):
+    For "thermo", (act_a, act_c) set the cube-root gate shape -- pass the per-tf
+    isolated-neuron fit so the teacher's activations match the finite-time
+    response of a real neuron read at that clock.
+    """
+
+    def __init__(self, activation="tanh", act_a=ACT_A, act_c=ACT_C):
         super().__init__()
         self.activation = activation
+        self.act_a, self.act_c = float(act_a), float(act_c)
         self.fc1 = nn.Linear(N_IN, H1)
         self.fc2 = nn.Linear(H1, H2)
         self.out = nn.Linear(H2, N_OUT)
 
+    def _act(self, x):
+        return _hidden_act(x, self.activation, self.act_a, self.act_c)
+
     def forward(self, x):
         """Class logits (B, 10) -- for cross-entropy training."""
-        h1 = _hidden_act(self.fc1(x), self.activation)
-        h2 = _hidden_act(self.fc2(h1), self.activation)
+        h1 = self._act(self.fc1(x))
+        h2 = self._act(self.fc2(h1))
         return self.out(h2)
 
     def activations(self, x):
@@ -120,8 +132,8 @@ class TeacherMLP(nn.Module):
                  [-1, 1] for tanh, unbounded (cube-root) for thermo.
         out    : (B, 10) softmax class probabilities, in [0, 1].
         """
-        h1 = _hidden_act(self.fc1(x), self.activation)
-        h2 = _hidden_act(self.fc2(h1), self.activation)
+        h1 = self._act(self.fc1(x))
+        h2 = self._act(self.fc2(h1))
         out = F.softmax(self.out(h2), dim=1)
         return torch.cat([h1, h2], dim=1), out
 
@@ -137,7 +149,8 @@ def accuracy(model, X, y, chunk=10000):
 
 
 def train_teacher(epochs=300, lr=0.2, weight_decay=1e-4, batch=256, seed=0,
-                  momentum=0.9, activation="tanh", device=None, verbose=True):
+                  momentum=0.9, activation="tanh", act_a=ACT_A, act_c=ACT_C,
+                  device=None, verbose=True):
     """Train the teacher to classify MNIST (paper Sec. III: SGD lr 0.2, weight
     decay 1e-4, batch 256, 300 epochs).
 
@@ -148,7 +161,7 @@ def train_teacher(epochs=300, lr=0.2, weight_decay=1e-4, batch=256, seed=0,
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
     torch.manual_seed(seed)
     Xtr, ytr, Xte, yte = load_mnist(device)
-    model = TeacherMLP(activation=activation).to(device)
+    model = TeacherMLP(activation=activation, act_a=act_a, act_c=act_c).to(device)
     opt = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum,
                           weight_decay=weight_decay)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=epochs)
@@ -179,7 +192,8 @@ def save_teacher(model, acc, path=None):
     os.makedirs(RUNS_DIR, exist_ok=True)
     path = path or os.path.join(RUNS_DIR, f"teacher_{model.activation}.pt")
     torch.save({"state_dict": model.state_dict(), "arch": [N_IN, H1, H2, N_OUT],
-                "activation": model.activation, "test_acc": acc}, path)
+                "activation": model.activation, "act_a": model.act_a,
+                "act_c": model.act_c, "test_acc": acc}, path)
     print(f"saved {path}  (test_acc {acc:.4f})")
     return path
 
@@ -187,7 +201,9 @@ def save_teacher(model, acc, path=None):
 def load_teacher(path=None, activation="tanh", device="cpu"):
     path = path or os.path.join(RUNS_DIR, f"teacher_{activation}.pt")
     d = torch.load(path, map_location=device)
-    model = TeacherMLP(activation=d.get("activation", activation)).to(device)
+    model = TeacherMLP(activation=d.get("activation", activation),
+                       act_a=d.get("act_a", ACT_A),
+                       act_c=d.get("act_c", ACT_C)).to(device)
     model.load_state_dict(d["state_dict"])
     model.eval()
     return model, d.get("test_acc")

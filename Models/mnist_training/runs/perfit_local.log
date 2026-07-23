@@ -1,0 +1,28 @@
+config: PER-TF REFIT teacher (beta=1) | teacher_epochs=300 guide=proportional k=100 M_eval=10 tfs=5 seeds=1 device=cuda
+C:\Nonlinear-TC-Project\Models\mnist_training\thermo_activation_fit.py:69: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\generated\python_variable_methods.cpp:837.)
+  A, C, g = float(sp(rawA)), float(sp(rawC)), float(sp(rawg))
+final test accuracy: 0.9714  (115s)
+tf=0.2  : fit ACT_A=0.6805 ACT_C=4.593 (rms 0.0081) | teacher 0.9714  (116s)
+>>> tf=0.2   seed=0  acc=0.9420  (164s)
+final test accuracy: 0.9713  (114s)
+tf=0.4  : fit ACT_A=0.6067 ACT_C=9.151 (rms 0.0079) | teacher 0.9713  (280s)
+>>> tf=0.4   seed=0  acc=0.9444  (369s)
+final test accuracy: 0.9730  (112s)
+tf=0.6  : fit ACT_A=0.5939 ACT_C=10.711 (rms 0.0069) | teacher 0.9730  (483s)
+>>> tf=0.6   seed=0  acc=0.9454  (611s)
+final test accuracy: 0.9723  (111s)
+tf=0.8  : fit ACT_A=0.5915 ACT_C=11.158 (rms 0.0078) | teacher 0.9723  (723s)
+>>> tf=0.8   seed=0  acc=0.9464  (889s)
+final test accuracy: 0.9706  (117s)
+tf=1    : fit ACT_A=0.5896 ACT_C=11.374 (rms 0.0079) | teacher 0.9706  (1008s)
+>>> tf=1     seed=0  acc=0.9433  (1232s)
+
+=== accuracy per tf (refit teacher) ===
+  tf=0.2    acc 0.9420  ACT_A=0.6805 ACT_C=4.593  teacher 0.9714
+  tf=0.4    acc 0.9444  ACT_A=0.6067 ACT_C=9.151  teacher 0.9713
+  tf=0.6    acc 0.9454  ACT_A=0.5939 ACT_C=10.711  teacher 0.9730
+  tf=0.8    acc 0.9464  ACT_A=0.5915 ACT_C=11.158  teacher 0.9723
+  tf=1      acc 0.9433  ACT_A=0.5896 ACT_C=11.374  teacher 0.9706
+optimal tf: 0.8  (0.9464)
+figure skipped (ValueError: 'tab:teal' is not a valid value for color: supported inputs are (r, g, b) and (r, g, b, a) 0-1 float tuples; '#rrggbb', '#rrggbbaa', '#rgb', '#rgba' strings; named color strings; string reprs of 0-1 floats for grayscale values; 'C0', 'C1', ... strings for colors of the color cycle; and pairs combining one of the above with an alpha value)

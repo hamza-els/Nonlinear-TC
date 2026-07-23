@@ -1,0 +1,38 @@
+config: teacher=thermo(0.9706) guide=proportional k=100.0 epochs=15 M_eval=10 tfs=11 seeds=2 device=cuda
+>>> tf=0.05  seed=0  acc=0.8918  (33s)
+>>> tf=0.05  seed=1  acc=0.8972  (52s)
+>>> tf=0.1   seed=0  acc=0.9206  (87s)
+>>> tf=0.1   seed=1  acc=0.9245  (123s)
+>>> tf=0.15  seed=0  acc=0.9308  (167s)
+>>> tf=0.15  seed=1  acc=0.9336  (214s)
+>>> tf=0.2   seed=0  acc=0.9368  (282s)
+>>> tf=0.2   seed=1  acc=0.9405  (352s)
+>>> tf=0.25  seed=0  acc=0.9398  (436s)
+>>> tf=0.25  seed=1  acc=0.9409  (528s)
+>>> tf=0.3   seed=0  acc=0.9419  (619s)
+>>> tf=0.3   seed=1  acc=0.9434  (697s)
+>>> tf=0.4   seed=0  acc=0.9444  (796s)
+>>> tf=0.4   seed=1  acc=0.9448  (902s)
+>>> tf=0.5   seed=0  acc=0.9447  (1035s)
+>>> tf=0.5   seed=1  acc=0.9455  (1166s)
+>>> tf=0.6   seed=0  acc=0.9461  (1327s)
+>>> tf=0.6   seed=1  acc=0.9465  (1477s)
+>>> tf=0.75  seed=0  acc=0.9463  (1665s)
+>>> tf=0.75  seed=1  acc=0.9471  (1851s)
+>>> tf=1     seed=0  acc=0.9467  (2091s)
+>>> tf=1     seed=1  acc=0.9472  (2316s)
+
+=== test accuracy per tf (median [best]) ===
+  tf=0.05   median 0.8945  best 0.8972
+  tf=0.1    median 0.9225  best 0.9245
+  tf=0.15   median 0.9322  best 0.9336
+  tf=0.2    median 0.9386  best 0.9405
+  tf=0.25   median 0.9404  best 0.9409
+  tf=0.3    median 0.9426  best 0.9434
+  tf=0.4    median 0.9446  best 0.9448
+  tf=0.5    median 0.9451  best 0.9455
+  tf=0.6    median 0.9463  best 0.9465
+  tf=0.75   median 0.9467  best 0.9471
+  tf=1      median 0.9469  best 0.9472
+optimal tf (median acc): 1.0  (0.9469)
+saved C:\Nonlinear-TC-Project\Models\mnist_training\..\..\Graphs\computer_graphs\fig_tf_scan_mnist_local.png
