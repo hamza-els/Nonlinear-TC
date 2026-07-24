@@ -1,0 +1,41 @@
+config: GA on MNIST thermo computer | gens=120 var_weight=0 tf=0.4 seed=0 | P=50 elites=5 K_FIT=10000 M_FIT=1 CRN=True MUT=0.02 | kT=1 device=cuda
+C:\Nonlinear-TC-Project\Models\mnist_training\thermo_activation_fit.py:69: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\generated\python_variable_methods.cpp:837.)
+  A, C, g = float(sp(rawA)), float(sp(rawC)), float(sp(rawg))
+refit activation @tf=0.4: ACT_A=0.6067 ACT_C=9.151 (rms 0.0079)
+final test accuracy: 0.9713  (1522s)
+teacher (thermo, refit): 0.9713
+OM-GD warm start: test acc 0.9444  (1945s)
+  gen    0  fitness 0.2507  CE 0.2507  var 0.0000    9.68 s/gen  (1955s)
+  gen    5  fitness 0.2511  CE 0.2511  var 0.0000    9.71 s/gen  (2003s)
+  gen   10  fitness 0.2507  CE 0.2507  var 0.0000    9.71 s/gen  (2052s)
+  gen   15  fitness 0.2509  CE 0.2509  var 0.0000    9.71 s/gen  (2100s)
+  gen   20  fitness 0.2417  CE 0.2417  var 0.0000    9.71 s/gen  (2149s)
+  checkpoint @gen 25
+  gen   25  fitness 0.2452  CE 0.2452  var 0.0000    9.73 s/gen  (2197s)
+  gen   30  fitness 0.2430  CE 0.2430  var 0.0000    9.71 s/gen  (2246s)
+  gen   35  fitness 0.2470  CE 0.2470  var 0.0000    9.71 s/gen  (2294s)
+  gen   40  fitness 0.2409  CE 0.2409  var 0.0000    9.71 s/gen  (2343s)
+  gen   45  fitness 0.2410  CE 0.2410  var 0.0000    9.75 s/gen  (2392s)
+  checkpoint @gen 50
+  gen   50  fitness 0.2407  CE 0.2407  var 0.0000    9.77 s/gen  (2441s)
+  gen   55  fitness 0.2418  CE 0.2418  var 0.0000    9.73 s/gen  (2489s)
+  gen   60  fitness 0.2369  CE 0.2369  var 0.0000    9.73 s/gen  (2538s)
+  gen   65  fitness 0.2346  CE 0.2346  var 0.0000    9.76 s/gen  (2587s)
+  gen   70  fitness 0.2363  CE 0.2363  var 0.0000    9.76 s/gen  (2635s)
+  checkpoint @gen 75
+  gen   75  fitness 0.2337  CE 0.2337  var 0.0000    9.77 s/gen  (2684s)
+  gen   80  fitness 0.2375  CE 0.2375  var 0.0000    9.76 s/gen  (2733s)
+  gen   85  fitness 0.2323  CE 0.2323  var 0.0000    9.76 s/gen  (2782s)
+  gen   90  fitness 0.2344  CE 0.2344  var 0.0000    9.76 s/gen  (2831s)
+  gen   95  fitness 0.2327  CE 0.2327  var 0.0000    9.75 s/gen  (2879s)
+  checkpoint @gen 100
+  gen  100  fitness 0.2286  CE 0.2286  var 0.0000    9.77 s/gen  (2928s)
+  gen  105  fitness 0.2335  CE 0.2335  var 0.0000    9.75 s/gen  (2977s)
+  gen  110  fitness 0.2310  CE 0.2310  var 0.0000    9.75 s/gen  (3026s)
+  gen  115  fitness 0.2341  CE 0.2341  var 0.0000    9.76 s/gen  (3075s)
+  gen  119  fitness 0.2303  CE 0.2303  var 0.0000    9.76 s/gen  (3114s)
+
+GA-finetuned:  test acc 0.9477   (M=10)
+OM-GD baseline: test acc 0.9444
+-> C:\Nonlinear-TC-Project\Models\mnist_training\runs\ga_mnist_tf0.4_vw0_seed0_g120.npz

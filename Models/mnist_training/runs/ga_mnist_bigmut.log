@@ -1,0 +1,44 @@
+config: GA on MNIST thermo computer | gens=200 var_weight=0 tf=0.4 seed=0 | P=50 elites=10 K_FIT=10000 M_FIT=1 CRN=True MUT=0.1 | kT=1 device=cuda
+C:\Nonlinear-TC-Project\Models\mnist_training\thermo_activation_fit.py:69: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\generated\python_variable_methods.cpp:837.)
+  A, C, g = float(sp(rawA)), float(sp(rawC)), float(sp(rawg))
+refit activation @tf=0.4: ACT_A=0.6067 ACT_C=9.151 (rms 0.0079)
+final test accuracy: 0.9713  (427s)
+teacher (thermo, refit): 0.9713
+OM-GD warm start: test acc 0.9444  (863s)
+  gen    0  fitness 0.2495  CE 0.2495  var 0.0000    9.67 s/gen  (873s)
+  gen    5  fitness 0.2479  CE 0.2479  var 0.0000    9.71 s/gen  (922s)
+  gen   10  fitness 0.2452  CE 0.2452  var 0.0000    9.71 s/gen  (970s)
+  gen   15  fitness 0.2431  CE 0.2431  var 0.0000    9.72 s/gen  (1019s)
+  gen   20  fitness 0.2348  CE 0.2348  var 0.0000    9.74 s/gen  (1068s)
+  checkpoint @gen 25
+  gen   25  fitness 0.2332  CE 0.2332  var 0.0000    9.68 s/gen  (1116s)
+  gen   30  fitness 0.2304  CE 0.2304  var 0.0000    9.76 s/gen  (1165s)
+  gen   35  fitness 0.2320  CE 0.2320  var 0.0000    9.76 s/gen  (1214s)
+  gen   40  fitness 0.2269  CE 0.2269  var 0.0000    9.75 s/gen  (1262s)
+  gen   45  fitness 0.2266  CE 0.2266  var 0.0000    9.77 s/gen  (1311s)
+  checkpoint @gen 50
+  gen   50  fitness 0.2257  CE 0.2257  var 0.0000    9.79 s/gen  (1360s)
+  gen   55  fitness 0.2232  CE 0.2232  var 0.0000    9.77 s/gen  (1409s)
+  gen   60  fitness 0.2190  CE 0.2190  var 0.0000    9.77 s/gen  (1458s)
+  gen   65  fitness 0.2165  CE 0.2165  var 0.0000    9.76 s/gen  (1507s)
+  gen   70  fitness 0.2215  CE 0.2215  var 0.0000    9.78 s/gen  (1556s)
+  checkpoint @gen 75
+  gen   75  fitness 0.2154  CE 0.2154  var 0.0000    9.79 s/gen  (1604s)
+  gen   80  fitness 0.2173  CE 0.2173  var 0.0000    9.78 s/gen  (1653s)
+  gen   85  fitness 0.2148  CE 0.2148  var 0.0000    9.79 s/gen  (1702s)
+  gen   90  fitness 0.2131  CE 0.2131  var 0.0000    9.77 s/gen  (1751s)
+  gen   95  fitness 0.2137  CE 0.2137  var 0.0000    9.77 s/gen  (1800s)
+  checkpoint @gen 100
+  gen  100  fitness 0.2114  CE 0.2114  var 0.0000    9.78 s/gen  (1849s)
+  gen  105  fitness 0.2099  CE 0.2099  var 0.0000    9.81 s/gen  (1898s)
+  gen  110  fitness 0.2121  CE 0.2121  var 0.0000    9.79 s/gen  (1947s)
+  gen  115  fitness 0.2108  CE 0.2108  var 0.0000    9.82 s/gen  (1996s)
+  gen  120  fitness 0.2097  CE 0.2097  var 0.0000    9.73 s/gen  (2045s)
+  checkpoint @gen 125
+  gen  125  fitness 0.2078  CE 0.2078  var 0.0000    9.80 s/gen  (2094s)
+  gen  130  fitness 0.2086  CE 0.2086  var 0.0000    9.80 s/gen  (2143s)
+  gen  135  fitness 0.2034  CE 0.2034  var 0.0000    9.81 s/gen  (2192s)
+  gen  140  fitness 0.2079  CE 0.2079  var 0.0000    9.77 s/gen  (2241s)
+  gen  145  fitness 0.2061  CE 0.2061  var 0.0000    9.82 s/gen  (2290s)
+  checkpoint @gen 150

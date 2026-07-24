@@ -1,0 +1,60 @@
+config: GA on MNIST thermo computer | gens=200 var_weight=0 tf=0.4 seed=0 | P=50 elites=5 K_FIT=500 M_FIT=20 CRN=True MUT=0.02 | kT=1 device=cuda
+C:\Nonlinear-TC-Project\Models\mnist_training\thermo_activation_fit.py:69: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\generated\python_variable_methods.cpp:837.)
+  A, C, g = float(sp(rawA)), float(sp(rawC)), float(sp(rawg))
+refit activation @tf=0.4: ACT_A=0.6067 ACT_C=9.151 (rms 0.0079)
+final test accuracy: 0.9713  (244s)
+teacher (thermo, refit): 0.9713
+OM-GD warm start: test acc 0.9444  (482s)
+  gen    0  fitness 0.2450  CE 0.2450  var 0.0158    9.35 s/gen  (491s)
+  gen    5  fitness 0.2187  CE 0.2187  var 0.0166    9.38 s/gen  (538s)
+  gen   10  fitness 0.2767  CE 0.2767  var 0.0160    9.38 s/gen  (585s)
+  gen   15  fitness 0.2023  CE 0.2023  var 0.0189    9.39 s/gen  (632s)
+  gen   20  fitness 0.2563  CE 0.2563  var 0.0180    9.37 s/gen  (679s)
+  checkpoint @gen 25
+  gen   25  fitness 0.2661  CE 0.2661  var 0.0198    9.46 s/gen  (726s)
+  gen   30  fitness 0.2611  CE 0.2611  var 0.0157    9.43 s/gen  (773s)
+  gen   35  fitness 0.2331  CE 0.2331  var 0.0180    9.43 s/gen  (821s)
+  gen   40  fitness 0.3283  CE 0.3283  var 0.0202    9.44 s/gen  (868s)
+  gen   45  fitness 0.2576  CE 0.2576  var 0.0206    9.45 s/gen  (915s)
+  checkpoint @gen 50
+  gen   50  fitness 0.2588  CE 0.2588  var 0.0188    9.37 s/gen  (962s)
+  gen   55  fitness 0.2129  CE 0.2129  var 0.0188    9.42 s/gen  (1009s)
+  gen   60  fitness 0.1503  CE 0.1503  var 0.0181    9.44 s/gen  (1056s)
+  gen   65  fitness 0.2194  CE 0.2194  var 0.0179    9.44 s/gen  (1104s)
+  gen   70  fitness 0.3218  CE 0.3218  var 0.0202    9.45 s/gen  (1151s)
+  checkpoint @gen 75
+  gen   75  fitness 0.2143  CE 0.2143  var 0.0195    9.39 s/gen  (1198s)
+  gen   80  fitness 0.1893  CE 0.1893  var 0.0168    9.45 s/gen  (1245s)
+  gen   85  fitness 0.1947  CE 0.1947  var 0.0164    9.56 s/gen  (1293s)
+  gen   90  fitness 0.2030  CE 0.2030  var 0.0159    9.48 s/gen  (1340s)
+  gen   95  fitness 0.2116  CE 0.2116  var 0.0179    8.20 s/gen  (1381s)
+  checkpoint @gen 100
+  gen  100  fitness 0.2431  CE 0.2431  var 0.0181    8.44 s/gen  (1423s)
+  gen  105  fitness 0.2232  CE 0.2232  var 0.0200    7.07 s/gen  (1459s)
+  gen  110  fitness 0.1591  CE 0.1591  var 0.0176    7.08 s/gen  (1494s)
+  gen  115  fitness 0.2793  CE 0.2793  var 0.0201    7.08 s/gen  (1530s)
+  gen  120  fitness 0.2216  CE 0.2216  var 0.0164    7.08 s/gen  (1565s)
+  checkpoint @gen 125
+  gen  125  fitness 0.2342  CE 0.2342  var 0.0174    7.08 s/gen  (1600s)
+  gen  130  fitness 0.2136  CE 0.2136  var 0.0234    7.08 s/gen  (1636s)
+  gen  135  fitness 0.2011  CE 0.2011  var 0.0187    7.09 s/gen  (1671s)
+  gen  140  fitness 0.2043  CE 0.2043  var 0.0199    7.07 s/gen  (1707s)
+  gen  145  fitness 0.2702  CE 0.2702  var 0.0196    7.09 s/gen  (1742s)
+  checkpoint @gen 150
+  gen  150  fitness 0.1604  CE 0.1604  var 0.0155    7.08 s/gen  (1777s)
+  gen  155  fitness 0.2207  CE 0.2207  var 0.0169    7.08 s/gen  (1813s)
+  gen  160  fitness 0.2546  CE 0.2546  var 0.0169    7.08 s/gen  (1848s)
+  gen  165  fitness 0.2020  CE 0.2020  var 0.0179    7.08 s/gen  (1883s)
+  gen  170  fitness 0.2310  CE 0.2310  var 0.0172    7.08 s/gen  (1919s)
+  checkpoint @gen 175
+  gen  175  fitness 0.2483  CE 0.2483  var 0.0210    7.09 s/gen  (1954s)
+  gen  180  fitness 0.2137  CE 0.2137  var 0.0158    7.08 s/gen  (1990s)
+  gen  185  fitness 0.2352  CE 0.2352  var 0.0167    7.10 s/gen  (2025s)
+  gen  190  fitness 0.1925  CE 0.1925  var 0.0152    7.13 s/gen  (2061s)
+  gen  195  fitness 0.2324  CE 0.2324  var 0.0174    7.07 s/gen  (2096s)
+  gen  199  fitness 0.2013  CE 0.2013  var 0.0171    7.08 s/gen  (2124s)
+
+GA-finetuned:  test acc 0.9458   (M=10)
+OM-GD baseline: test acc 0.9444
+-> C:\Nonlinear-TC-Project\Models\mnist_training\runs\ga_mnist_tf0.4_vw0_seed0_g200.npz

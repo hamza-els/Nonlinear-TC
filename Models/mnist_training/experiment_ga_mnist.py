@@ -43,19 +43,30 @@ TF = float(sys.argv[3]) if len(sys.argv) > 3 else 0.4
 SEED = int(sys.argv[4]) if len(sys.argv) > 4 else 0
 
 # --- GA hyperparameters ----------------------------------------------------
-P = 50            # population size
-N_ELITE = 5       # elites carried over unmutated each generation
-MUT = 2e-2        # base mutation std, divided by sqrt(fan-in) per tensor
-K_FIT = 500       # training digits per fitness evaluation (fresh each gen)
-M_FIT = 20        # reset samples per digit during fitness
-K_CHUNK = 250     # digit-chunk, bounds the P x K x M x N state tensor
+P = 65            # population size (65 candidate computers per generation)
+N_ELITE = 10      # elite lineages carried over unmutated
+MUT = 1e-1        # base mutation std (5x up from 2e-2): probe how far
+                  # random-mutation fine-tuning can push a 63k-param model
+# Fitness = each computer's cross-entropy over the ENTIRE 60k-digit TRAIN set
+# (no subsampling), so it is the true full-train error and identical every
+# generation -- selection compares parameters, never the luck of a batch.  The
+# TEST set is untouched (used only for the final accuracy report).
+K_FIT = 60000     # = all of the MNIST train split (full-dataset fitness)
+M_FIT = 1         # reset samples per digit (raise for a variance penalty)
+K_CHUNK = 2500    # digit-chunk, bounds the P x K_CHUNK x M x N state tensor
 CRN = True        # common random numbers within a generation
 TEACHER_EPOCHS = 300
 M_EVAL = 10
 CKPT_EVERY = 25
 
-FANIN = {"b": 1.0, "W": float(N_IN), "Jhh": float(HIDDEN),
-         "Jho": (HIDDEN + N_OUT) / 2.0, "Joo": float(N_OUT)}
+# Fan-in for mutation scaling.  The true all-to-all in-degrees (W: 784, Jhh: 64)
+# divide the mutation by sqrt(784) ~ 28, making W steps ~7e-4 -- far too small to
+# move a 63k-parameter computer, which is why the GA sat still.  Instead we scale
+# by the PREVIOUS-LAYER width of the digital teacher this computer imitates
+# (784-32-32-10), i.e. 32 for the couplings, so steps are ~5x larger.
+FANIN_REF = 32.0
+FANIN = {"b": 1.0, "W": FANIN_REF, "Jhh": FANIN_REF,
+         "Jho": FANIN_REF, "Joo": float(N_OUT)}
 
 
 def sym0(J):
@@ -164,11 +175,22 @@ def main():
         print(f"resuming from gen {start}/{GENS}", flush=True)
 
     elites = [{k: pop[k][i].clone() for k in pop} for i in range(N_ELITE)]
+    # ONE fixed evaluation set, drawn once from the TRAIN split and reused every
+    # generation, so fitness is comparable across generations (the test set is
+    # kept untouched for reporting -- optimizing on it would be leakage).
+    gsel = torch.Generator(device=device).manual_seed(12345)
+    fit_idx = torch.randperm(Xtr.shape[0], generator=gsel,
+                             device=device)[:K_FIT]
+    Xfit, yfit = Xtr[fit_idx], ytr[fit_idx]
+    if VAR_WEIGHT > 0 and M_FIT < 2:
+        print(f"WARNING: var_weight={VAR_WEIGHT:g} but M_FIT={M_FIT} -- the "
+              f"per-sample variance of a single sample is identically 0, so the "
+              f"penalty does nothing.  Set M_FIT >= 2 for variance runs.",
+              flush=True)
+
     t_last, n_last = time.time(), start
     for n in range(start, GENS):
-        idx = torch.randint(0, Xtr.shape[0], (K_FIT,), generator=g,
-                            device=device)                 # fresh digits
-        fit, ce, var = population_fitness(pop, Xtr[idx], ytr[idx],
+        fit, ce, var = population_fitness(pop, Xfit, yfit,
                                           SEED + 2000 + n, device)
         fit = torch.nan_to_num(fit, nan=float("inf"), posinf=float("inf"))
         order = torch.argsort(fit); best = order[0].item()
